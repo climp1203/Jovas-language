@@ -1,0 +1,1342 @@
+#!/usr/bin/env python3
+# ============================================
+#   JOVAS LANGUAGE RUNNER v1.0
+#   Usage:
+#     python run.py run app.jovas
+#     python run.py repl
+#     python run.py check app.jovas
+#     python run.py version
+# ============================================
+
+import sys
+import os
+import re
+import time
+import json
+import math
+import hashlib
+import threading
+from datetime import datetime
+from collections import defaultdict
+
+
+# ══════════════════════════════════════════════
+#  SECTION 1 — TOKEN TYPES
+# ══════════════════════════════════════════════
+class TT:
+    NUMBER="NUMBER"; STRING="STRING"; BOOL="BOOL"; NULL="NULL"
+    IDENTIFIER="IDENTIFIER"; LET="LET"; CONST="CONST"; FN="FN"
+    RETURN="RETURN"; IF="IF"; ELSE="ELSE"; ELSE_IF="ELSE_IF"
+    FOR="FOR"; IN="IN"; WHILE="WHILE"; REPEAT="REPEAT"
+    CLASS="CLASS"; SELF="SELF"; IMPORT="IMPORT"
+    ASYNC="ASYNC"; AWAIT="AWAIT"; THREAD="THREAD"
+    PARALLEL="PARALLEL"; TASK="TASK"
+    TRY="TRY"; CATCH="CATCH"; FINALLY="FINALLY"
+    MATCH="MATCH"; CASE="CASE"; EXPOSE="EXPOSE"
+    PLUS="PLUS"; MINUS="MINUS"; STAR="STAR"; SLASH="SLASH"
+    PERCENT="PERCENT"; EQUALS="EQUALS"; EQ_EQ="EQ_EQ"
+    BANG_EQ="BANG_EQ"; LT="LT"; GT="GT"; LT_EQ="LT_EQ"; GT_EQ="GT_EQ"
+    AND="AND"; OR="OR"; BANG="BANG"; DOT="DOT"; ARROW="ARROW"
+    PIPE="PIPE"; QUESTION="QUESTION"; COLON="COLON"
+    LPAREN="LPAREN"; RPAREN="RPAREN"; LBRACE="LBRACE"; RBRACE="RBRACE"
+    LBRACKET="LBRACKET"; RBRACKET="RBRACKET"; COMMA="COMMA"
+    NEWLINE="NEWLINE"; INDENT="INDENT"; DEDENT="DEDENT"; EOF="EOF"
+
+
+class Token:
+    def __init__(self, type, value, line):
+        self.type=type; self.value=value; self.line=line
+    def __repr__(self):
+        return f"Token({self.type},{repr(self.value)},L{self.line})"
+
+
+KEYWORDS = {
+    "let":TT.LET,"const":TT.CONST,"fn":TT.FN,"return":TT.RETURN,
+    "if":TT.IF,"else":TT.ELSE,"for":TT.FOR,"in":TT.IN,
+    "while":TT.WHILE,"repeat":TT.REPEAT,"class":TT.CLASS,
+    "self":TT.SELF,"import":TT.IMPORT,"async":TT.ASYNC,"await":TT.AWAIT,
+    "thread":TT.THREAD,"parallel":TT.PARALLEL,"task":TT.TASK,
+    "try":TT.TRY,"catch":TT.CATCH,"finally":TT.FINALLY,
+    "match":TT.MATCH,"case":TT.CASE,"expose":TT.EXPOSE,
+    "true":TT.BOOL,"false":TT.BOOL,"null":TT.NULL,
+}
+
+
+# ══════════════════════════════════════════════
+#  SECTION 2 — LEXER
+# ══════════════════════════════════════════════
+class Lexer:
+    def __init__(self, source):
+        self.source=source; self.pos=0; self.line=1
+        self.tokens=[]; self.indent_stack=[0]
+
+    def error(self, msg):
+        raise SyntaxError(f"\n  [Jovas SyntaxError] Line {self.line}: {msg}")
+
+    def peek(self, o=0):
+        i=self.pos+o
+        return self.source[i] if i<len(self.source) else None
+
+    def advance(self):
+        c=self.source[self.pos]; self.pos+=1; return c
+
+    def match(self, c):
+        if self.pos<len(self.source) and self.source[self.pos]==c:
+            self.pos+=1; return True
+        return False
+
+    def add(self, t, v): self.tokens.append(Token(t,v,self.line))
+
+    def handle_indent(self):
+        sp=0
+        while self.pos<len(self.source) and self.source[self.pos]==' ':
+            sp+=1; self.pos+=1
+        if self.pos<len(self.source) and self.source[self.pos] in('\n','#','/'):
+            return
+        cur=self.indent_stack[-1]
+        if sp>cur:
+            self.indent_stack.append(sp); self.add(TT.INDENT,sp)
+        elif sp<cur:
+            while self.indent_stack[-1]>sp:
+                self.indent_stack.pop(); self.add(TT.DEDENT,sp)
+            if self.indent_stack[-1]!=sp:
+                self.error("Inconsistent indentation")
+
+    def read_string(self, q, template=False):
+        result=""
+        while self.pos<len(self.source):
+            c=self.advance()
+            if c=='\\':
+                e=self.advance()
+                result+=({'n':'\n','t':'\t','\\':'\\','"':'"',"'":'\'','r':'\r'}.get(e,e))
+            elif c==q:
+                break
+            else:
+                result+=c
+        return result
+
+    def read_number(self, f):
+        n=f
+        while self.pos<len(self.source) and (self.source[self.pos].isdigit() or self.source[self.pos]=='.'):
+            n+=self.advance()
+        return float(n) if '.' in n else int(n)
+
+    def read_identifier(self, f):
+        w=f
+        while self.pos<len(self.source) and (self.source[self.pos].isalnum() or self.source[self.pos]=='_'):
+            w+=self.advance()
+        return w
+
+    def tokenize(self):
+        at_start=True
+        while self.pos<len(self.source):
+            if at_start:
+                self.handle_indent(); at_start=False
+            if self.pos>=len(self.source): break
+            c=self.advance()
+
+            if c in(' ','\t'):  continue
+            elif c=='\n':
+                self.add(TT.NEWLINE,'\\n'); self.line+=1; at_start=True
+            elif c=='/' and self.peek()=='/':
+                while self.pos<len(self.source) and self.source[self.pos]!='\n': self.pos+=1
+            elif c=='#':
+                while self.pos<len(self.source) and self.source[self.pos]!='\n': self.pos+=1
+            elif c in('"',"'"):
+                # check for template string ${...}
+                val=self.read_string(c)
+                # tag as template if it contains ${
+                ttype=TT.STRING
+                self.add(ttype,val)
+            elif c.isdigit():   self.add(TT.NUMBER, self.read_number(c))
+            elif c.isalpha() or c=='_':
+                word=self.read_identifier(c)
+                if word=='else' and self.peek()==' ' and self.source[self.pos:self.pos+3]==' if':
+                    self.pos+=3; self.add(TT.ELSE_IF,'else if')
+                else:
+                    self.add(KEYWORDS.get(word,TT.IDENTIFIER), word)
+            elif c=='+': self.add(TT.PLUS,'+')
+            elif c=='-': self.add(TT.MINUS,'-')
+            elif c=='*': self.add(TT.STAR,'*')
+            elif c=='%': self.add(TT.PERCENT,'%')
+            elif c=='.': self.add(TT.DOT,'.')
+            elif c=='?': self.add(TT.QUESTION,'?')
+            elif c=='/': self.add(TT.SLASH,'/')
+            elif c=='|':
+                if self.match('|'): self.add(TT.OR,'||')
+                elif self.match('>'): self.add(TT.PIPE,'|>')
+                else: self.error(f"Unknown character '|'")
+            elif c=='=':
+                if self.match('='): self.add(TT.EQ_EQ,'==')
+                elif self.match('>'): self.add(TT.ARROW,'=>')
+                else: self.add(TT.EQUALS,'=')
+            elif c=='!':
+                if self.match('='): self.add(TT.BANG_EQ,'!=')
+                else: self.add(TT.BANG,'!')
+            elif c=='<':
+                if self.match('='): self.add(TT.LT_EQ,'<=')
+                else: self.add(TT.LT,'<')
+            elif c=='>':
+                if self.match('='): self.add(TT.GT_EQ,'>=')
+                else: self.add(TT.GT,'>')
+            elif c=='&' and self.match('&'): self.add(TT.AND,'&&')
+            elif c=='(': self.add(TT.LPAREN,'(')
+            elif c==')': self.add(TT.RPAREN,')')
+            elif c=='{': self.add(TT.LBRACE,'{')
+            elif c=='}': self.add(TT.RBRACE,'}')
+            elif c=='[': self.add(TT.LBRACKET,'[')
+            elif c==']': self.add(TT.RBRACKET,']')
+            elif c==',': self.add(TT.COMMA,',')
+            elif c==':': self.add(TT.COLON,':')
+            else: self.error(f"Unknown character: '{c}'")
+
+        while len(self.indent_stack)>1:
+            self.indent_stack.pop(); self.add(TT.DEDENT,0)
+        self.add(TT.EOF,None)
+        return self.tokens
+
+
+# ══════════════════════════════════════════════
+#  SECTION 3 — AST NODES
+# ══════════════════════════════════════════════
+class Node: pass
+
+class Program(Node):
+    def __init__(self,body): self.body=body
+class VarDecl(Node):
+    def __init__(self,name,value,constant=False): self.name=name;self.value=value;self.constant=constant
+class FunctionDecl(Node):
+    def __init__(self,name,params,body,is_async=False,expose=False): self.name=name;self.params=params;self.body=body;self.is_async=is_async;self.expose=expose
+class ReturnStmt(Node):
+    def __init__(self,value): self.value=value
+class IfStmt(Node):
+    def __init__(self,cond,then,elifs,els): self.cond=cond;self.then=then;self.elifs=elifs;self.els=els
+class ForStmt(Node):
+    def __init__(self,var,it,body): self.var=var;self.it=it;self.body=body
+class WhileStmt(Node):
+    def __init__(self,cond,body): self.cond=cond;self.body=body
+class RepeatStmt(Node):
+    def __init__(self,count,body): self.count=count;self.body=body
+class MatchStmt(Node):
+    def __init__(self,value,cases): self.value=value;self.cases=cases  # cases: list of (pattern,body)
+class TryCatch(Node):
+    def __init__(self,try_b,cv,catch_b,fin_b): self.try_b=try_b;self.cv=cv;self.catch_b=catch_b;self.fin_b=fin_b
+class ClassDecl(Node):
+    def __init__(self,name,methods): self.name=name;self.methods=methods
+class ImportStmt(Node):
+    def __init__(self,module): self.module=module
+class ThreadStmt(Node):
+    def __init__(self,fn): self.fn=fn
+class ParallelStmt(Node):
+    def __init__(self,tasks): self.tasks=tasks
+class ExprStmt(Node):
+    def __init__(self,expr): self.expr=expr
+class BinaryOp(Node):
+    def __init__(self,l,op,r): self.l=l;self.op=op;self.r=r
+class UnaryOp(Node):
+    def __init__(self,op,operand): self.op=op;self.operand=operand
+class Assignment(Node):
+    def __init__(self,name,value): self.name=name;self.value=value
+class MemberAccess(Node):
+    def __init__(self,obj,prop,safe=False): self.obj=obj;self.prop=prop;self.safe=safe
+class IndexAccess(Node):
+    def __init__(self,obj,idx): self.obj=obj;self.idx=idx
+class FunctionCall(Node):
+    def __init__(self,callee,args): self.callee=callee;self.args=args
+class AwaitExpr(Node):
+    def __init__(self,expr): self.expr=expr
+class PipeExpr(Node):
+    def __init__(self,left,right): self.left=left;self.right=right
+class AnonymousFn(Node):
+    def __init__(self,params,body): self.params=params;self.body=body
+class ArrayLiteral(Node):
+    def __init__(self,els): self.els=els
+class ObjectLiteral(Node):
+    def __init__(self,pairs): self.pairs=pairs
+class NumberLiteral(Node):
+    def __init__(self,v): self.v=v
+class StringLiteral(Node):
+    def __init__(self,v,template=False): self.v=v;self.template=template
+class BoolLiteral(Node):
+    def __init__(self,v): self.v=v
+class NullLiteral(Node): pass
+class Identifier(Node):
+    def __init__(self,name): self.name=name
+
+
+# ══════════════════════════════════════════════
+#  SECTION 4 — PARSER
+# ══════════════════════════════════════════════
+class Parser:
+    def __init__(self, tokens):
+        self.tokens=[t for t in tokens if t.type!=TT.NEWLINE]
+        self.pos=0
+
+    def error(self,msg):
+        t=self.cur()
+        raise SyntaxError(f"\n  [Jovas ParseError] Line {t.line}: {msg} (got {t.type} '{t.value}')")
+
+    def cur(self): return self.tokens[self.pos]
+    def peek(self,o=1):
+        i=self.pos+o
+        return self.tokens[i] if i<len(self.tokens) else self.tokens[-1]
+    def advance(self):
+        t=self.tokens[self.pos]
+        if t.type!=TT.EOF: self.pos+=1
+        return t
+    def expect(self,t):
+        tok=self.cur()
+        if tok.type!=t: self.error(f"Expected {t}")
+        return self.advance()
+    def match(self,*types):
+        if self.cur().type in types: return self.advance()
+        return None
+
+    def skip_whitespace(self):
+        """Skip INDENT/DEDENT/NEWLINE tokens — used inside brackets where indentation is not significant."""
+        while self.cur().type in (TT.INDENT, TT.DEDENT, TT.NEWLINE):
+            self.advance()
+
+    def parse_block(self):
+        self.expect(TT.INDENT)
+        stmts=[]
+        while self.cur().type not in(TT.DEDENT,TT.EOF):
+            s=self.parse_stmt()
+            if s: stmts.append(s)
+        self.expect(TT.DEDENT)
+        return stmts
+
+    def parse(self):
+        body=[]
+        while self.cur().type!=TT.EOF:
+            s=self.parse_stmt()
+            if s: body.append(s)
+        return Program(body)
+
+    def parse_stmt(self):
+        t=self.cur()
+        if t.type==TT.LET:      return self.parse_var(False)
+        if t.type==TT.CONST:    return self.parse_var(True)
+        if t.type==TT.FN:       return self.parse_fn(False,False)
+        if t.type==TT.ASYNC:    return self.parse_async()
+        if t.type==TT.EXPOSE:   return self.parse_expose()
+        if t.type==TT.RETURN:   return self.parse_return()
+        if t.type==TT.IF:       return self.parse_if()
+        if t.type==TT.FOR:      return self.parse_for()
+        if t.type==TT.WHILE:    return self.parse_while()
+        if t.type==TT.REPEAT:   return self.parse_repeat()
+        if t.type==TT.MATCH:    return self.parse_match()
+        if t.type==TT.TRY:      return self.parse_try()
+        if t.type==TT.CLASS:    return self.parse_class()
+        if t.type==TT.IMPORT:   return self.parse_import()
+        if t.type==TT.THREAD:   return self.parse_thread()
+        if t.type==TT.PARALLEL: return self.parse_parallel()
+        if t.type in(TT.INDENT,TT.DEDENT): self.advance(); return None
+        return ExprStmt(self.parse_expr())
+
+    def parse_var(self,constant):
+        self.advance()
+        name=self.expect(TT.IDENTIFIER).value
+        self.expect(TT.EQUALS)
+        return VarDecl(name,self.parse_expr(),constant)
+
+    def parse_fn(self,is_async,expose):
+        self.expect(TT.FN)
+        name=self.expect(TT.IDENTIFIER).value
+        params=self.parse_params()
+        body=self.parse_block()
+        return FunctionDecl(name,params,body,is_async,expose)
+
+    def parse_async(self):
+        self.advance(); return self.parse_fn(True,False)
+
+    def parse_expose(self):
+        self.advance(); return self.parse_fn(False,True)
+
+    def parse_params(self):
+        self.expect(TT.LPAREN); params=[]
+        self.skip_whitespace()
+        while self.cur().type!=TT.RPAREN:
+            name=self.expect(TT.IDENTIFIER).value
+            hint=None
+            if self.cur().type==TT.COLON:
+                self.advance(); hint=self.advance().value
+            params.append((name,hint))
+            self.skip_whitespace()
+            if not self.match(TT.COMMA): break
+            self.skip_whitespace()
+        self.expect(TT.RPAREN)
+        return params
+
+    def parse_return(self):
+        self.advance(); return ReturnStmt(self.parse_expr())
+
+    def parse_if(self):
+        self.expect(TT.IF)
+        cond=self.parse_expr(); then=self.parse_block()
+        elifs=[]; els=None
+        while self.cur().type==TT.ELSE_IF:
+            self.advance(); ec=self.parse_expr(); eb=self.parse_block()
+            elifs.append((ec,eb))
+        if self.cur().type==TT.ELSE:
+            self.advance(); els=self.parse_block()
+        return IfStmt(cond,then,elifs,els)
+
+    def parse_for(self):
+        self.expect(TT.FOR); var=self.expect(TT.IDENTIFIER).value
+        self.expect(TT.IN); it=self.parse_expr(); body=self.parse_block()
+        return ForStmt(var,it,body)
+
+    def parse_while(self):
+        self.expect(TT.WHILE); cond=self.parse_expr(); body=self.parse_block()
+        return WhileStmt(cond,body)
+
+    def parse_repeat(self):
+        self.expect(TT.REPEAT); count=self.parse_expr(); body=self.parse_block()
+        return RepeatStmt(count,body)
+
+    def parse_match(self):
+        self.expect(TT.MATCH); value=self.parse_expr()
+        self.expect(TT.INDENT); cases=[]
+        while self.cur().type not in(TT.DEDENT,TT.EOF):
+            if self.cur().type==TT.CASE: self.advance()
+            pattern=self.parse_expr()
+            self.expect(TT.ARROW)
+            # single-line body
+            body=self.parse_expr()
+            cases.append((pattern,body))
+        self.expect(TT.DEDENT)
+        return MatchStmt(value,cases)
+
+    def parse_try(self):
+        self.expect(TT.TRY); try_b=self.parse_block()
+        cv=None; catch_b=[]; fin_b=[]
+        if self.cur().type==TT.CATCH:
+            self.advance()
+            if self.cur().type==TT.IDENTIFIER: cv=self.advance().value
+            catch_b=self.parse_block()
+        if self.cur().type==TT.FINALLY:
+            self.advance(); fin_b=self.parse_block()
+        return TryCatch(try_b,cv,catch_b,fin_b)
+
+    def parse_class(self):
+        self.expect(TT.CLASS); name=self.expect(TT.IDENTIFIER).value
+        self.expect(TT.INDENT); methods=[]
+        while self.cur().type not in(TT.DEDENT,TT.EOF):
+            if self.cur().type==TT.FN: methods.append(self.parse_fn(False,False))
+            else: self.advance()
+        self.expect(TT.DEDENT)
+        return ClassDecl(name,methods)
+
+    def parse_import(self):
+        self.expect(TT.IMPORT); module=self.expect(TT.IDENTIFIER).value
+        return ImportStmt(module)
+
+    def parse_thread(self):
+        self.advance(); return ThreadStmt(self.parse_fn(False,False))
+
+    def parse_parallel(self):
+        self.advance(); self.expect(TT.INDENT); tasks=[]
+        while self.cur().type not in(TT.DEDENT,TT.EOF):
+            if self.cur().type==TT.TASK:
+                self.advance(); tasks.append(self.expect(TT.IDENTIFIER).value)
+                self.expect(TT.LPAREN); self.expect(TT.RPAREN)
+            else: self.advance()
+        self.expect(TT.DEDENT)
+        return ParallelStmt(tasks)
+
+    # — expressions —
+    def parse_expr(self): return self.parse_pipe()
+
+    def parse_pipe(self):
+        left=self.parse_or()
+        while self.cur().type==TT.PIPE:
+            self.advance(); right=self.parse_or()
+            left=PipeExpr(left,right)
+        return left
+
+    def parse_or(self):
+        l=self.parse_and()
+        while self.cur().type==TT.OR:
+            op=self.advance().value; r=self.parse_and(); l=BinaryOp(l,op,r)
+        return l
+
+    def parse_and(self):
+        l=self.parse_eq()
+        while self.cur().type==TT.AND:
+            op=self.advance().value; r=self.parse_eq(); l=BinaryOp(l,op,r)
+        return l
+
+    def parse_eq(self):
+        l=self.parse_cmp()
+        while self.cur().type in(TT.EQ_EQ,TT.BANG_EQ):
+            op=self.advance().value; r=self.parse_cmp(); l=BinaryOp(l,op,r)
+        return l
+
+    def parse_cmp(self):
+        l=self.parse_add()
+        while self.cur().type in(TT.LT,TT.GT,TT.LT_EQ,TT.GT_EQ):
+            op=self.advance().value; r=self.parse_add(); l=BinaryOp(l,op,r)
+        return l
+
+    def parse_add(self):
+        l=self.parse_mul()
+        while self.cur().type in(TT.PLUS,TT.MINUS):
+            op=self.advance().value; r=self.parse_mul(); l=BinaryOp(l,op,r)
+        return l
+
+    def parse_mul(self):
+        l=self.parse_unary()
+        while self.cur().type in(TT.STAR,TT.SLASH,TT.PERCENT):
+            op=self.advance().value; r=self.parse_unary(); l=BinaryOp(l,op,r)
+        return l
+
+    def parse_unary(self):
+        if self.cur().type in(TT.BANG,TT.MINUS):
+            op=self.advance().value; return UnaryOp(op,self.parse_unary())
+        return self.parse_await()
+
+    def parse_await(self):
+        if self.cur().type==TT.AWAIT:
+            self.advance(); return AwaitExpr(self.parse_call())
+        return self.parse_call()
+
+    def parse_call(self):
+        expr=self.parse_primary()
+        while True:
+            if self.cur().type==TT.LPAREN:
+                self.advance(); args=[]
+                self.skip_whitespace()
+                while self.cur().type!=TT.RPAREN:
+                    args.append(self.parse_expr())
+                    self.skip_whitespace()
+                    if not self.match(TT.COMMA): break
+                    self.skip_whitespace()
+                self.expect(TT.RPAREN); expr=FunctionCall(expr,args)
+            elif self.cur().type==TT.DOT:
+                self.advance(); prop=self.expect(TT.IDENTIFIER).value
+                expr=MemberAccess(expr,prop,False)
+            elif self.cur().type==TT.QUESTION and self.peek().type==TT.DOT:
+                self.advance(); self.advance(); prop=self.expect(TT.IDENTIFIER).value
+                expr=MemberAccess(expr,prop,True)
+            elif self.cur().type==TT.LBRACKET:
+                self.advance(); idx=self.parse_expr(); self.expect(TT.RBRACKET)
+                expr=IndexAccess(expr,idx)
+            elif self.cur().type==TT.EQUALS and self.peek().type!=TT.EQUALS:
+                self.advance(); val=self.parse_expr(); expr=Assignment(expr,val)
+            else: break
+        return expr
+
+    def parse_primary(self):
+        t=self.cur()
+        if t.type==TT.NUMBER: self.advance(); return NumberLiteral(t.value)
+        if t.type==TT.STRING:
+            self.advance()
+            is_tmpl='${' in t.value
+            return StringLiteral(t.value,is_tmpl)
+        if t.type==TT.BOOL:   self.advance(); return BoolLiteral(t.value=='true')
+        if t.type==TT.NULL:   self.advance(); return NullLiteral()
+        if t.type in(TT.IDENTIFIER,TT.SELF): self.advance(); return Identifier(t.value)
+        if t.type==TT.LPAREN:
+            self.advance(); e=self.parse_expr(); self.expect(TT.RPAREN); return e
+        if t.type==TT.LBRACKET:
+            self.advance(); els=[]
+            self.skip_whitespace()
+            while self.cur().type!=TT.RBRACKET:
+                els.append(self.parse_expr())
+                self.skip_whitespace()
+                if not self.match(TT.COMMA): break
+                self.skip_whitespace()
+            self.expect(TT.RBRACKET); return ArrayLiteral(els)
+        if t.type==TT.LBRACE:
+            self.advance(); pairs=[]
+            self.skip_whitespace()
+            while self.cur().type!=TT.RBRACE:
+                k=self.expect(TT.IDENTIFIER).value; self.expect(TT.COLON)
+                self.skip_whitespace()
+                v=self.parse_expr(); pairs.append((k,v))
+                self.skip_whitespace()
+                if not self.match(TT.COMMA): break
+                self.skip_whitespace()
+            self.expect(TT.RBRACE); return ObjectLiteral(pairs)
+        if t.type==TT.FN:
+            self.advance(); params=self.parse_params(); body=self.parse_block()
+            return AnonymousFn(params,body)
+        self.error(f"Unexpected token in expression: {t.value}")
+
+
+# ══════════════════════════════════════════════
+#  SECTION 5 — RUNTIME OBJECTS
+# ══════════════════════════════════════════════
+class ReturnSignal(Exception):
+    def __init__(self,v): self.v=v
+
+class JovasError(Exception):
+    def __init__(self,msg): self.message=msg; super().__init__(msg)
+
+class JovasFn:
+    _interpreter = None   # set by Interpreter on init
+
+    def __init__(self,name,params,body,env,is_async=False):
+        self.name=name;self.params=params;self.body=body;self.env=env;self.is_async=is_async
+
+    def __call__(self, args):
+        """Makes JovasFn directly callable from Python (e.g. stdlib modules)."""
+        if JovasFn._interpreter:
+            return JovasFn._interpreter.call_fn(self, args if isinstance(args,list) else [args], self.env)
+        return None
+
+    def __repr__(self): return f"<fn {self.name}>"
+
+class JovasInstance:
+    def __init__(self,cls,methods,env):
+        self.cls=cls;self.fields={};self.methods=methods;self.env=env
+    def __repr__(self): return f"<{self.cls} {self.fields}>"
+
+class Env:
+    def __init__(self,parent=None):
+        self.vars={};self.consts=set();self.parent=parent
+    def get(self,name):
+        if name in self.vars: return self.vars[name]
+        if self.parent: return self.parent.get(name)
+        raise JovasError(f"Undefined variable '{name}'")
+    def set(self,name,value,constant=False):
+        self.vars[name]=value
+        if constant: self.consts.add(name)
+    def assign(self,name,value):
+        if name in self.vars:
+            if name in self.consts: raise JovasError(f"Cannot reassign constant '{name}'")
+            self.vars[name]=value
+        elif self.parent: self.parent.assign(name,value)
+        else: self.vars[name]=value
+
+
+# ══════════════════════════════════════════════
+#  SECTION 6 — STANDARD LIBRARY
+# ══════════════════════════════════════════════
+class Logger:
+    ICONS={"debug":"🔍","info":"ℹ️ ","warn":"⚠️ ","error":"❌","fatal":"💀"}
+    def _log(self,level,args):
+        msg=args[0] if args else ""
+        data=args[1] if len(args)>1 else None
+        ts=datetime.now().strftime("%H:%M:%S")
+        icon=self.ICONS.get(level,"•")
+        extra=f" {json.dumps(data)}" if data else ""
+        print(f"[{ts}] {icon} {level.upper():5} {msg}{extra}")
+    def debug(self,a): self._log("debug",a)
+    def info(self,a):  self._log("info",a)
+    def warn(self,a):  self._log("warn",a)
+    def error(self,a): self._log("error",a)
+    def fatal(self,a): self._log("fatal",a)
+
+class FileModule:
+    def read(self,a):
+        with open(a[0]) as f: return f.read()
+    def write(self,a):
+        with open(a[0],"w") as f: f.write(str(a[1])); return True
+    def append(self,a):
+        with open(a[0],"a") as f: f.write(str(a[1])); return True
+    def delete(self,a): os.remove(a[0]); return True
+    def exists(self,a): return os.path.exists(a[0])
+    def list(self,a):   return os.listdir(a[0])
+
+class HttpModule:
+    def get(self,a):  return {"status":200,"body":f"[Mock GET] {a[0]}","ok":True}
+    def post(self,a): return {"status":201,"body":f"[Mock POST] {a[0]}","ok":True,"data":a[1] if len(a)>1 else {}}
+
+# ── JovasDB + all missing modules injected here ──
+# (NativeDB, EmailModule, SecurityModule, etc.)
+# All classes loaded from jovas_modules.py at runtime
+
+class AuthModule:
+    def sign(self,a):
+        p=json.dumps(a[0]); s=a[1] if len(a)>1 else "secret"
+        return "jvt."+hashlib.sha256(f"{p}{s}".encode()).hexdigest()[:32]
+    def verify(self,a):
+        return {"valid":True,"userId":1} if str(a[0]).startswith("jvt.") else (_ for _ in ()).throw(JovasError("Invalid token"))
+    def guard(self,a): return lambda r:r
+
+class AiModule:
+    def ask(self,a):       print(f"  [AI] '{a[0][:40]}'"); return f"AI: {a[0]}"
+    def summarize(self,a): w=str(a[0]).split(); return " ".join(w[:8])+("..." if len(w)>8 else "")
+    def sentiment(self,a):
+        t=str(a[0]).lower()
+        s=sum(1 for w in["good","great","love","awesome"] if w in t)-sum(1 for w in["bad","hate","awful"] if w in t)
+        return {"sentiment":"positive" if s>0 else("negative" if s<0 else "neutral"),"score":s}
+    def translate(self,a): return f"[{a[1].upper() if len(a)>1 else 'ES'}] {a[0]}"
+    def classify(self,a):
+        import random; l=a[1] if len(a)>1 else["general"]
+        return {"label":random.choice(l),"confidence":round(random.uniform(0.75,0.99),2)}
+
+class ServerModule:
+    def create(self,a): return ServerInstance()
+
+class ServerInstance:
+    def __init__(self): self.routes=[]
+    def get(self,a):    self.routes.append(("GET",a[0])); print(f"  [Server] GET {a[0]}"); return self
+    def post(self,a):   self.routes.append(("POST",a[0])); print(f"  [Server] POST {a[0]}"); return self
+    def listen(self,a):
+        print(f"  [Server] 🚀 Listening on port {a[0]}")
+        if len(a)>1 and callable(a[1]): a[1]([])
+        return self
+
+class DeployModule:
+    def __init__(self): self._v=0; self._hist=[]
+    def to(self,a):
+        self._v+=1; cfg=a[1] if len(a)>1 else {}
+        region=cfg.get("region","us-east-1") if isinstance(cfg,dict) else "us-east-1"
+        url=f"https://jovas-v{self._v}.app"
+        print(f"  [Deploy] 🚀 Deploying v{self._v} → {url} [{region}]")
+        self._hist.append(url)
+        return {"url":url,"version":self._v}
+    def status(self,a):  return {"url":self._hist[-1],"v":self._v} if self._hist else {}
+    def rollback(self,a):
+        if len(self._hist)>=2: self._hist.pop(); print(f"  [Deploy] ⏪ Rolled back to {self._hist[-1]}")
+        return True
+    def scale(self,a):   print(f"  [Deploy] ⚡ Scaled to {a[0]} instances"); return True
+    def logs(self,a):    print(f"  [Deploy] 📋 No errors in last 100 lines"); return []
+
+class RateLimiter:
+    def __init__(self): self._b=defaultdict(list)
+    def check(self,a):
+        key=a[0];limit=int(a[1]);window=a[2] if len(a)>2 else "1min"
+        secs={"s":1,"sec":1,"min":60,"hr":3600}.get(re.sub(r'\d','',window),60)*int(re.sub(r'\D','',window) or 1)
+        now=time.time(); self._b[key]=[t for t in self._b[key] if now-t<secs]
+        if len(self._b[key])>=limit:
+            print(f"  [RateLimit] ❌ {key} blocked ({limit}/{limit})")
+            return {"allowed":False,"remaining":0}
+        self._b[key].append(now); r=limit-len(self._b[key])
+        print(f"  [RateLimit] ✅ {key} allowed ({len(self._b[key])}/{limit}, {r} left)")
+        return {"allowed":True,"remaining":r}
+
+class ConfigModule:
+    def __init__(self): self._c={}
+    def load(self,a):
+        path=a[0] if a else ".env"
+        try:
+            with open(path) as f:
+                for line in f:
+                    line=line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k,_,v=line.partition("="); self._c[k.strip()]=v.strip()
+            print(f"  [Config] ✅ Loaded {len(self._c)} vars from {path}")
+        except FileNotFoundError:
+            print(f"  [Config] ⚠️  {path} not found")
+        return self
+    def get(self,a): return self._c.get(a[0], os.environ.get(a[0], a[1] if len(a)>1 else None))
+    def require(self,a):
+        v=self._c.get(a[0])
+        if v is None: raise JovasError(f"Required config '{a[0]}' missing")
+        return v
+
+class RealtimeModule:
+    def __init__(self): self._ch={}; self._ev={}; self._pr=defaultdict(set)
+    def sync(self,a):
+        ch=a[0];h=a[1] if len(a)>1 else None
+        self._ch.setdefault(ch,[])
+        if h: self._ch[ch].append(h)
+        print(f"  [Realtime] 📡 Subscribed: {ch}"); return {"channel":ch}
+    def broadcast(self,a):
+        ch=a[0];data=a[1] if len(a)>1 else {}
+        [h([data]) for h in self._ch.get(ch,[])]
+        print(f"  [Realtime] 📢 Broadcast → {ch}: {data}"); return True
+    def on(self,a):
+        ev=a[0];h=a[1] if len(a)>1 else None
+        self._ev.setdefault(ev,[])
+        if h: self._ev[ev].append(h)
+        print(f"  [Realtime] 👂 Listening: {ev}"); return True
+    def emit(self,a):
+        ev=a[0];data=a[1] if len(a)>1 else {}
+        [h([data]) for h in self._ev.get(ev,[])]
+        print(f"  [Realtime] ⚡ Emit: {ev}"); return True
+    def presence(self,a): return list(self._pr[a[0]])
+    def join(self,a):  self._pr[a[0]].add(a[1] if len(a)>1 else "anon"); return True
+    def leave(self,a): self._pr[a[0]].discard(a[1] if len(a)>1 else "anon"); return True
+
+
+# ══════════════════════════════════════════════
+#  SECTION 7 — INTERPRETER
+# ══════════════════════════════════════════════
+class Interpreter:
+    def __init__(self):
+        self.genv=Env()
+        self.api_endpoints=[]
+        JovasFn._interpreter = self   # allow stdlib modules to call JovasFn
+        self._setup()
+
+    def _setup(self):
+        e=self.genv
+        # builtins
+        e.set("print",   lambda a: print(*[self._display(x) for x in a]))
+        e.set("input",   lambda a: input(a[0] if a else ""))
+        e.set("len",     lambda a: len(a[0]))
+        e.set("type",    lambda a: type(a[0]).__name__)
+        e.set("str",     lambda a: str(a[0]))
+        e.set("int",     lambda a: int(a[0]))
+        e.set("float",   lambda a: float(a[0]))
+        e.set("bool",    lambda a: bool(a[0]))
+        e.set("range",   lambda a: list(range(int(a[0]),int(a[1]) if len(a)>1 else int(a[0]))))
+        e.set("list",    lambda a: list(a[0]))
+        e.set("sorted",  lambda a: sorted(a[0]))
+        e.set("reversed",lambda a: list(reversed(a[0])))
+        e.set("abs",     lambda a: abs(a[0]))
+        e.set("round",   lambda a: round(a[0], int(a[1]) if len(a)>1 else 0))
+        e.set("min",     lambda a: min(a[0]) if len(a)==1 else min(a))
+        e.set("max",     lambda a: max(a[0]) if len(a)==1 else max(a))
+        # stdlib modules
+        e.set("log",      Logger())
+        e.set("file",     FileModule())
+        e.set("http",     HttpModule())
+        # ── Real database & new modules ──
+        _mods=get_jovas_modules()
+        e.set("database", _mods["database"])
+        e.set("db",       _mods["database"].connect(["jovas"]))
+        e.set("email",    _mods["email"])
+        e.set("security", _mods["security"])
+        e.set("http",     _mods["http"])
+        e.set("socket",   _mods["socket"])
+        e.set("fmt",      _mods["fmt"])
+        e.set("lint",     _mods["lint"])
+        e.set("debug",    _mods["debug"])
+        e.set("auth",     AuthModule())
+        e.set("ai",       AiModule())
+        e.set("server",   ServerModule())
+        e.set("deploy",   DeployModule())
+        e.set("rateLimit",RateLimiter())
+        e.set("config",   ConfigModule())
+        e.set("realtime", RealtimeModule())
+        e.set("math",     {"PI":math.pi,"E":math.e,"sqrt":lambda a:math.sqrt(a[0]),"floor":lambda a:math.floor(a[0]),"ceil":lambda a:math.ceil(a[0]),"pow":lambda a:math.pow(a[0],a[1])})
+        e.set("json",     {"parse":lambda a:json.loads(a[0]),"stringify":lambda a:json.dumps(a[0],indent=2)})
+        e.set("crypto",   {"hash":lambda a:hashlib.sha256(str(a[0]).encode()).hexdigest(),"md5":lambda a:hashlib.md5(str(a[0]).encode()).hexdigest()})
+        e.set("env",      {"get":lambda a:os.environ.get(a[0],a[1] if len(a)>1 else None),"set":lambda a:os.environ.update({a[0]:str(a[1])})})
+        e.set("time",     {"now":lambda a:time.time(),"sleep":lambda a:time.sleep(a[0]),"format":lambda a:datetime.now().strftime("%Y-%m-%d %H:%M:%S"),"today":lambda a:datetime.now().strftime("%Y-%m-%d")})
+
+    def _display(self, v):
+        if v is None:  return "null"
+        if v is True:  return "true"
+        if v is False: return "false"
+        if isinstance(v, JovasFn): return str(v)
+        if isinstance(v, JovasInstance): return str(v)
+        return str(v)
+
+    def _interpolate(self, s, env):
+        def repl(m):
+            expr=m.group(1).strip()
+            try:
+                lx=Lexer(expr); tk=lx.tokenize()
+                pa=Parser(tk); nd=pa.parse_expr()
+                return self._display(self.eval(nd,env))
+            except: return "${"+expr+"}"
+        return re.sub(r'\$\{([^}]+)\}', repl, s)
+
+    def exec_block(self, stmts, env):
+        result=None
+        for s in stmts: result=self.execute(s,env)
+        return result
+
+    def execute(self, node, env):
+        if isinstance(node, Program):    return self.exec_block(node.body,env)
+        if isinstance(node, ImportStmt): return None
+        if isinstance(node, VarDecl):
+            v=self.eval(node.value,env); env.set(node.name,v,node.constant); return v
+        if isinstance(node, FunctionDecl):
+            fn=JovasFn(node.name,node.params,node.body,env,node.is_async)
+            env.set(node.name,fn)
+            if node.expose:
+                params=[p for p,_ in node.params]
+                ep={"method":"GET" if not params else "POST","path":f"/api/{node.name}","fn":node.name,"params":params}
+                self.api_endpoints.append(ep)
+                print(f"  [AutoAPI] ✨ {ep['method']} {ep['path']} → {params}")
+            return fn
+        if isinstance(node, ReturnStmt):
+            raise ReturnSignal(self.eval(node.value,env))
+        if isinstance(node, IfStmt):
+            if self.eval(node.cond,env):
+                return self.exec_block(node.then,Env(env))
+            for c,b in node.elifs:
+                if self.eval(c,env): return self.exec_block(b,Env(env))
+            if node.els: return self.exec_block(node.els,Env(env))
+        if isinstance(node, ForStmt):
+            it=self.eval(node.it,env)
+            for item in it:
+                ce=Env(env); ce.set(node.var,item); self.exec_block(node.body,ce)
+        if isinstance(node, WhileStmt):
+            while self.eval(node.cond,env): self.exec_block(node.body,Env(env))
+        if isinstance(node, RepeatStmt):
+            for _ in range(int(self.eval(node.count,env))): self.exec_block(node.body,Env(env))
+        if isinstance(node, MatchStmt):
+            val=self.eval(node.value,env)
+            for pattern,body in node.cases:
+                pval=self.eval(pattern,env)
+                if pval=="default" or pval=="_" or pval==val:
+                    return self.eval(body,env)
+        if isinstance(node, TryCatch):
+            try: self.exec_block(node.try_b,Env(env))
+            except (JovasError,Exception) as ex:
+                msg=ex.message if isinstance(ex,JovasError) else str(ex)
+                if node.cv:
+                    ce=Env(env); ce.set(node.cv,{"message":msg,"type":type(ex).__name__})
+                    self.exec_block(node.catch_b,ce)
+            finally:
+                if node.fin_b: self.exec_block(node.fin_b,Env(env))
+        if isinstance(node, ClassDecl):
+            methods={m.name:JovasFn(m.name,m.params,m.body,env) for m in node.methods}
+            env.set(node.name,{"__class__":node.name,"__methods__":methods,"__env__":env})
+        if isinstance(node, ThreadStmt):
+            fn=JovasFn(node.fn.name,node.fn.params,node.fn.body,env)
+            t=threading.Thread(target=lambda:self.call_fn(fn,[],env)); t.daemon=True; t.start()
+            print(f"  [Thread] Started: {node.fn.name}")
+        if isinstance(node, ParallelStmt):
+            fns=[env.get(n) for n in node.tasks]
+            threads=[threading.Thread(target=lambda f=fn:self.call_fn(f,[],env)) for fn in fns]
+            for t in threads: t.start()
+            for t in threads: t.join()
+        if isinstance(node, ExprStmt): return self.eval(node.expr,env)
+        return self.eval(node,env) if not isinstance(node,(Program,ImportStmt,VarDecl,FunctionDecl,ReturnStmt,IfStmt,ForStmt,WhileStmt,RepeatStmt,MatchStmt,TryCatch,ClassDecl,ImportStmt,ThreadStmt,ParallelStmt,ExprStmt)) else None
+
+    def eval(self, node, env):
+        if isinstance(node, NumberLiteral): return node.v
+        if isinstance(node, StringLiteral):
+            return self._interpolate(node.v,env) if node.template else node.v
+        if isinstance(node, BoolLiteral):   return node.v
+        if isinstance(node, NullLiteral):   return None
+        if isinstance(node, ArrayLiteral):  return [self.eval(e,env) for e in node.els]
+        if isinstance(node, ObjectLiteral): return {k:self.eval(v,env) for k,v in node.pairs}
+        if isinstance(node, Identifier):    return env.get(node.name)
+        if isinstance(node, AnonymousFn):   return JovasFn("<anon>",[p for p,_ in node.params],node.body,env)
+        if isinstance(node, AwaitExpr):     return self.eval(node.expr,env)
+        if isinstance(node, PipeExpr):
+            left=self.eval(node.left,env); right=self.eval(node.right,env)
+            return self._call(right,[left],env)
+        if isinstance(node, UnaryOp):
+            v=self.eval(node.operand,env)
+            if node.op=="!": return not v
+            if node.op=="-": return -v
+        if isinstance(node, BinaryOp):
+            l=self.eval(node.l,env); r=self.eval(node.r,env); op=node.op
+            if op=="+":  return l+r
+            if op=="-":  return l-r
+            if op=="*":  return l*r
+            if op=="/":
+                if r==0: raise JovasError("Division by zero")
+                return l/r
+            if op=="%":  return l%r
+            if op=="==": return l==r
+            if op=="!=": return l!=r
+            if op=="<":  return l<r
+            if op==">":  return l>r
+            if op=="<=": return l<=r
+            if op==">=": return l>=r
+            if op=="&&": return l and r
+            if op=="||": return l or r
+        if isinstance(node, Assignment):
+            v=self.eval(node.value,env); target=node.name
+            if isinstance(target,Identifier): env.assign(target.name,v)
+            elif isinstance(target,MemberAccess):
+                obj=self.eval(target.obj,env)
+                if isinstance(obj,JovasInstance): obj.fields[target.prop]=v
+                elif isinstance(obj,dict): obj[target.prop]=v
+            elif isinstance(target,IndexAccess):
+                obj=self.eval(target.obj,env); idx=self.eval(target.idx,env); obj[idx]=v
+            return v
+        if isinstance(node, MemberAccess):
+            obj=self.eval(node.obj,env)
+            if node.safe and obj is None: return None
+            return self._get_member(obj,node.prop,env)
+        if isinstance(node, IndexAccess):
+            obj=self.eval(node.obj,env); idx=self.eval(node.idx,env)
+            if isinstance(obj,(list,str)): return obj[int(idx)]
+            if isinstance(obj,dict): return obj[idx]
+        if isinstance(node, FunctionCall):
+            callee=self.eval(node.callee,env)
+            args=[self.eval(a,env) for a in node.args]
+            return self._call(callee,args,env)
+        # fallthrough for stmt-nodes called via eval
+        return self.execute(node,env)
+
+    def _get_member(self,obj,prop,env):
+        if isinstance(obj,dict):
+            if "__class__" in obj and prop in obj.get("__methods__",{}):
+                return ("__method__",obj,prop)
+            if prop in obj: return obj[prop]
+            raise JovasError(f"No property '{prop}'")
+        if isinstance(obj,list):
+            builtins={"length":lambda a:len(obj),"push":lambda a:obj.append(a[0]) or obj,"pop":lambda a:obj.pop(),"map":lambda a:[self.call_fn(a[0],[item],env) for item in obj],"filter":lambda a:[i for i in obj if self.call_fn(a[0],[i],env)],"join":lambda a:(a[0] if a else ",").join(str(i) for i in obj),"includes":lambda a:a[0] in obj,"reverse":lambda a:list(reversed(obj)),"sort":lambda a:sorted(obj)}
+            if prop in builtins: return builtins[prop]
+            raise JovasError(f"No list method '{prop}'")
+        if isinstance(obj,str):
+            builtins={"length":lambda a:len(obj),"upper":lambda a:obj.upper(),"lower":lambda a:obj.lower(),"trim":lambda a:obj.strip(),"split":lambda a:obj.split(a[0] if a else " "),"includes":lambda a:a[0] in obj,"replace":lambda a:obj.replace(a[0],a[1]),"startsWith":lambda a:obj.startswith(a[0]),"endsWith":lambda a:obj.endswith(a[0])}
+            if prop in builtins: return builtins[prop]
+            raise JovasError(f"No string method '{prop}'")
+        if isinstance(obj,JovasInstance):
+            if prop in obj.fields: return obj.fields[prop]
+            if prop in obj.methods: return ("__bound__",obj,prop)
+            raise JovasError(f"No field/method '{prop}' on {obj.cls}")
+        # try with underscore suffix for reserved words (assert_ for assert, etc.)
+        if hasattr(obj,prop): return getattr(obj,prop)
+        if hasattr(obj,prop+'_'): return getattr(obj,prop+'_')
+        raise JovasError(f"Cannot access '{prop}' on {type(obj).__name__}")
+
+    def _call(self,callee,args,env):
+        if callable(callee): return callee(args)
+        if isinstance(callee,tuple) and callee[0]=="__method__":
+            _,obj,prop=callee
+            m=obj["__methods__"][prop]
+            inst=JovasInstance(obj["__class__"],obj["__methods__"],obj["__env__"])
+            return self.call_fn(m,args,env,inst)
+        if isinstance(callee,tuple) and callee[0]=="__bound__":
+            _,inst,prop=callee; m=inst.methods[prop]
+            return self.call_fn(m,args,env,inst)
+        if isinstance(callee,dict) and "__class__" in callee:
+            inst=JovasInstance(callee["__class__"],callee["__methods__"],callee["__env__"])
+            if "init" in callee["__methods__"]:
+                self.call_fn(callee["__methods__"]["init"],args,env,inst)
+            return inst
+        if isinstance(callee,JovasFn): return self.call_fn(callee,args,env)
+        raise JovasError(f"Cannot call {type(callee).__name__}")
+
+    def call_fn(self,fn,args,env,inst=None):
+        fe=Env(fn.env)
+        if inst: fe.set("self",inst)
+        for i,(pname,_) in enumerate(fn.params if fn.params and isinstance(fn.params[0],tuple) else [(p,None) for p in fn.params]):
+            fe.set(pname, args[i] if i<len(args) else None)
+        try: self.exec_block(fn.body,fe); return None
+        except ReturnSignal as r: return r.v
+
+    def run(self, source):
+        try:
+            lx=Lexer(source); tk=lx.tokenize()
+            pa=Parser(tk); ast=pa.parse()
+            return self.execute(ast,self.genv)
+        except SyntaxError as e:
+            print(f"\n{e}"); sys.exit(1)
+        except JovasError as e:
+            self._smart_error(str(e)); sys.exit(1)
+        except Exception as e:
+            self._smart_error(str(e)); sys.exit(1)
+
+    def _smart_error(self, msg):
+        tips={
+            "division by zero":    "Check if divisor is 0 before dividing:\n    if y != 0\n        return x / y",
+            "undefined variable":  "Declare it first:\n    let myVar = 0",
+            "cannot call":         "Make sure you're calling a function, not a variable.",
+            "no property":         "Check the object has that property before accessing it.",
+            "constant":            "Use 'let' instead of 'const' for values that change.",
+        }
+        tip=next((v for k,v in tips.items() if k in msg.lower()), "Check your code and try again.")
+        print(f"""
+╔══════════════════════════════════════════╗
+║         JOVAS SMART ERROR                ║
+╠══════════════════════════════════════════╣
+║  {msg[:42]:<42} ║
+╚══════════════════════════════════════════╝
+  💡 {tip}
+""")
+
+
+# ══════════════════════════════════════════════
+#  SECTION 8 — REPL
+# ══════════════════════════════════════════════
+def start_repl():
+    interp=Interpreter()
+    print(f"""
+╔══════════════════════════════════════════╗
+║   🟡  JOVAS v1.0  Interactive Shell      ║
+║   Type 'exit' to quit · 'help' for cmds ║
+╚══════════════════════════════════════════╝""")
+    buf=[]; indent=0
+    while True:
+        try:
+            prompt="  ... " if buf else "jovas> "
+            line=input(prompt)
+        except (EOFError,KeyboardInterrupt):
+            print("\n  Goodbye! 👋"); break
+
+        if line.strip()=="exit":   print("  Goodbye! 👋"); break
+        if line.strip()=="help":
+            print("  Commands: let, const, fn, if, for, while, class, import")
+            print("  Modules : log, http, db, auth, ai, server, deploy, realtime")
+            continue
+        if line.strip()=="clear":  print("\033[H\033[J"); continue
+
+        buf.append(line)
+        stripped=line.rstrip()
+        if stripped.endswith(":") or stripped.endswith("{"):
+            indent+=1; continue
+        if stripped=="" and indent>0:
+            indent-=1
+            if indent>0: continue
+
+        source="\n".join(buf); buf=[]; indent=0
+        try:
+            lx=Lexer(source); tk=lx.tokenize()
+            pa=Parser(tk); ast=pa.parse()
+            result=interp.execute(ast,interp.genv)
+            if result is not None: print(f"  → {interp._display(result)}")
+        except SyntaxError as e:
+            print(f"  SyntaxError: {e}")
+        except JovasError as e:
+            print(f"  JovasError: {e.message}")
+        except Exception as e:
+            print(f"  Error: {e}")
+
+
+# ══════════════════════════════════════════════
+#  SECTION 9 — CLI ENTRY POINT
+# ══════════════════════════════════════════════
+# ── ANSI color codes ──
+_GOLD  = "[38;5;220m"
+_DIM   = "[38;5;178m"
+_RESET = "[0m"
+_BOLD  = "[1m"
+
+def _colored_banner():
+    G = _GOLD + _BOLD
+    R = _RESET
+    lines = [
+        "",
+        f"{G}  ╔═══════════════════════════════════════════════════════╗{R}",
+        f"{G}  ║                                                       ║{R}",
+        f"{G}  ║   ░░░  ░░░   ░░░   ░░   ░░  ░░░  ░░░                ║{R}",
+        f"{G}  ║     ░  ░  ░  ░  ░  ░░   ░░  ░  ░ ░                  ║{R}",
+        f"{G}  ║     ░  ░░░   ░░░   ░░░░░░░  ░░░  ░░░                ║{R}",
+        f"{G}  ║ ░   ░  ░  ░  ░ ░   ░░   ░░  ░  ░    ░               ║{R}",
+        f"{G}  ║  ░░░   ░░░   ░  ░  ░░   ░░  ░░░  ░░░                ║{R}",
+        f"{G}  ║                                                       ║{R}",
+        f"{G}  ║   ██╗                                                 ║{R}",
+        f"{G}  ║   ██║  The AI-Native Backend Language                 ║{R}",
+        f"{G}  ║   ██║  v1.0.0  .  jovas.jo  .  by Jovas              ║{R}",
+        f"{G}  ║   ╚██╗                                                ║{R}",
+        f"{G}  ║    ╚═╝                                                ║{R}",
+        f"{G}  ║                                                       ║{R}",
+        f"{G}  ╚═══════════════════════════════════════════════════════╝{R}",
+        "",
+    ]
+    return chr(10).join(lines)
+
+
+# ══════════════════════════════════════════════
+#  MISSING MODULES LOADER
+# ══════════════════════════════════════════════
+def get_jovas_modules():
+    import importlib.util, os
+    mod_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "jovas_modules.py")
+    if not os.path.exists(mod_path):
+        class _Stub:
+            def __getattr__(self,n): return lambda a=[]: print(f"  [Stub] Module not found") or None
+        stub=_Stub()
+        return {k:stub for k in ["database","email","security","http","socket","fmt","lint","debug"]}
+    spec   = importlib.util.spec_from_file_location("jovas_modules", mod_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.get_modules()
+
+BANNER = _colored_banner()
+
+HELP = """
+  Usage:
+    python run.py run <file.jovas>   Run a .jovas file
+    python run.py repl               Start interactive shell
+    python run.py check <file.jovas> Check syntax only
+    python run.py version            Show version info
+
+  Examples:
+    python run.py run app.jovas
+    python run.py repl
+"""
+
+def cmd_run(filepath):
+    if not os.path.exists(filepath):
+        print(f"\n  [Jovas] ❌ File not found: {filepath}"); sys.exit(1)
+    if not filepath.endswith(".jovas"):
+        print(f"\n  [Jovas] ⚠️  Expected a .jovas file"); sys.exit(1)
+    with open(filepath) as f: source=f.read()
+    print(f"\n  [Jovas] ▶  Running {filepath}...\n")
+    start=time.time()
+    Interpreter().run(source)
+    elapsed=(time.time()-start)*1000
+    print(f"\n  [Jovas] ✅ Done in {elapsed:.1f}ms")
+
+def cmd_check(filepath):
+    if not os.path.exists(filepath):
+        print(f"  [Jovas] ❌ File not found: {filepath}"); sys.exit(1)
+    with open(filepath) as f: source=f.read()
+    try:
+        lx=Lexer(source); tk=lx.tokenize(); pa=Parser(tk); pa.parse()
+        print(f"  [Jovas] ✅ {filepath} — No syntax errors found")
+    except SyntaxError as e:
+        print(f"  [Jovas] ❌ {e}"); sys.exit(1)
+
+def cmd_version():
+    print(f"""
+  Jovas v1.0.0
+  Python runtime: {sys.version.split()[0]}
+  Platform: {sys.platform}
+  Features: AI · Deploy · Realtime · NaturalDB · AutoAPI
+  Author: Jovas Language Project""")
+
+
+# ══════════════════════════════════════════════
+#  SECTION 10 — DEMO .jovas PROGRAM
+# ══════════════════════════════════════════════
+DEMO_PROGRAM = '''// ─────────────────────────────────────
+//  DEMO — app.jovas
+//  A real Jovas backend application
+// ─────────────────────────────────────
+
+import json
+import math
+
+// Constants
+const APP_NAME = "Jovas Demo"
+const VERSION  = "1.0.0"
+const PORT     = 8080
+
+// String interpolation
+let greeting = "Welcome to ${APP_NAME} v${VERSION}!"
+print(greeting)
+
+// Functions
+fn add(a, b)
+    return a + b
+
+fn factorial(n)
+    if n <= 1
+        return 1
+    return n * factorial(n - 1)
+
+fn isPrime(n)
+    if n < 2
+        return false
+    let i = 2
+    while i * i <= n
+        if n % i == 0
+            return false
+        i = i + 1
+    return true
+
+print(add(10, 25))
+print(factorial(7))
+print(isPrime(17))
+print(isPrime(18))
+
+// Collections
+let scores = [95, 80, 72, 88, 91]
+let total = 0
+for s in scores
+    total = total + s
+let avg = total / len(scores)
+print("Average score: ${avg}")
+
+// Object
+let user = { name: "Alex", role: "admin", age: 28 }
+print("User: ${user}")
+
+// Class
+class Animal
+    fn init(name, sound)
+        self.name = name
+        self.sound = sound
+    fn speak()
+        return "${self.name} says ${self.sound}!"
+
+let dog = Animal("Dog", "Woof")
+let cat = Animal("Cat", "Meow")
+print(dog.speak())
+print(cat.speak())
+
+// Auth + HTTP
+let token = auth.sign({ userId: 1, role: "admin" }, "secret")
+print("Token: ${token}")
+let payload = auth.verify(token, "secret")
+print("Payload: ${payload}")
+
+// AI module
+let sentiment = ai.sentiment(["Jovas is an awesome and great language!"])
+print("Sentiment: ${sentiment}")
+
+// Async function
+async fn fetchUsers()
+    let res = await http.get("https://api.jovas.dev/users")
+    return res.body
+
+let result = fetchUsers()
+print("Fetch result: ${result}")
+
+// Error handling
+try
+    let x = 10
+    let y = 0
+    if y == 0
+        let boom = "division by zero"
+catch err
+    print("Caught: ${err}")
+finally
+    print("Cleanup done")
+
+// Server
+fn onRoot()
+    print("GET /")
+fn onUsers()
+    print("POST /users")
+fn onStart()
+    print("Server live on port ${PORT}")
+
+let app = server.create()
+app.get("/", onRoot)
+app.post("/users", onUsers)
+app.listen(PORT, onStart)
+
+// Auto API
+expose fn getUser(id)
+    return db.find("users", { id: id })
+
+expose fn createUser(name, email)
+    return db.insert("users", { name: name, email: email })
+
+// Deploy
+let deployment = deploy.to("cloud", { region: "us-east-1", scale: "auto" })
+print("Deployed: ${deployment}")
+
+// Log
+log.info(["App started", { port: PORT, version: VERSION }])
+log.warn(["High memory"])
+log.error(["DB timeout", { query: "SELECT *" }])
+
+print("\\n✅ Jovas app finished successfully!")
+'''
+
+
+# ══════════════════════════════════════════════
+#  MAIN
+# ══════════════════════════════════════════════
+if __name__ == "__main__":
+    args=sys.argv[1:]
+
+    if not args:
+        print(BANNER)
+        print("\n  Running built-in demo program...\n")
+        Interpreter().run(DEMO_PROGRAM)
+        print(f"\n{HELP}")
+
+    elif args[0]=="run" and len(args)>1:
+        print(BANNER); cmd_run(args[1])
+
+    elif args[0]=="repl":
+        start_repl()
+
+    elif args[0]=="check" and len(args)>1:
+        print(BANNER); cmd_check(args[1])
+
+    elif args[0]=="version":
+        cmd_version()
+
+    elif args[0]=="help":
+        print(BANNER); print(HELP)
+
+    else:
+        # treat as filename shortcut
+        if os.path.exists(args[0]):
+            print(BANNER); cmd_run(args[0])
+        else:
+            print(BANNER); print(HELP)

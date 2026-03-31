@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Environment files
+.env
+*.env
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jovas temp files
+*.jovas.cache
+.jovas_history
+
+# Logs
+*.log
+logs/
+
+# JovasDB — ignore database files but keep the folder
+jovasdb_data/*.jdb
+jovasdb_data/*.jdb-lock
+
+# Debug exports
+jovas_debug.json
