@@ -1,0 +1,430 @@
+{
+  "Jovas Variable": {
+    "prefix": "let",
+    "body": ["let ${1:name} = ${2:value}"],
+    "description": "Declare a variable"
+  },
+
+  "Jovas Constant": {
+    "prefix": "const",
+    "body": ["const ${1:NAME} = ${2:value}"],
+    "description": "Declare a constant"
+  },
+
+  "Jovas Function": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2:params})",
+      "    ${3:// body}",
+      "    return ${4:null}"
+    ],
+    "description": "Declare a function"
+  },
+
+  "Jovas Async Function": {
+    "prefix": "afn",
+    "body": [
+      "async fn ${1:name}(${2:params})",
+      "    let result = await ${3:expression}",
+      "    return result"
+    ],
+    "description": "Declare an async function"
+  },
+
+  "Jovas Expose Function": {
+    "prefix": "expose",
+    "body": [
+      "expose fn ${1:name}(${2:params})",
+      "    ${3:// auto-generates REST endpoint}",
+      "    return ${4:null}"
+    ],
+    "description": "Expose function as REST endpoint"
+  },
+
+  "Jovas Class": {
+    "prefix": "class",
+    "body": [
+      "class ${1:Name}",
+      "    fn init(${2:params})",
+      "        self.${3:field} = ${4:value}",
+      "",
+      "    fn ${5:method}()",
+      "        return ${6:null}"
+    ],
+    "description": "Declare a class"
+  },
+
+  "Jovas If": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition}",
+      "    ${2:// body}"
+    ],
+    "description": "If statement"
+  },
+
+  "Jovas If Else": {
+    "prefix": "ife",
+    "body": [
+      "if ${1:condition}",
+      "    ${2:// then}",
+      "else",
+      "    ${3:// else}"
+    ],
+    "description": "If-else statement"
+  },
+
+  "Jovas For Loop": {
+    "prefix": "for",
+    "body": [
+      "for ${1:item} in ${2:items}",
+      "    ${3:print(item)}"
+    ],
+    "description": "For loop"
+  },
+
+  "Jovas While Loop": {
+    "prefix": "while",
+    "body": [
+      "while ${1:condition}",
+      "    ${2:// body}"
+    ],
+    "description": "While loop"
+  },
+
+  "Jovas Repeat": {
+    "prefix": "repeat",
+    "body": [
+      "repeat ${1:5}",
+      "    ${2:// body}"
+    ],
+    "description": "Repeat N times"
+  },
+
+  "Jovas Match": {
+    "prefix": "match",
+    "body": [
+      "match ${1:value}",
+      "    case \"${2:pattern1}\" => ${3:print(\"matched\")}",
+      "    case \"${4:pattern2}\" => ${5:print(\"matched\")}",
+      "    case \"default\"      => ${6:print(\"no match\")}"
+    ],
+    "description": "Pattern matching"
+  },
+
+  "Jovas Try Catch": {
+    "prefix": "try",
+    "body": [
+      "try",
+      "    ${1:// risky code}",
+      "catch ${2:err}",
+      "    print(\"Error: \\${${2:err}.message}\")",
+      "finally",
+      "    ${3:// cleanup}"
+    ],
+    "description": "Try-catch-finally"
+  },
+
+  "Jovas Import": {
+    "prefix": "import",
+    "body": ["import ${1:module}"],
+    "description": "Import a module"
+  },
+
+  "Jovas Print": {
+    "prefix": "print",
+    "body": ["print(\"${1:message}\")"],
+    "description": "Print to console"
+  },
+
+  "Jovas Print Interpolated": {
+    "prefix": "printi",
+    "body": ["print(\"${1:label}: \\${${2:value}}\")"],
+    "description": "Print with string interpolation"
+  },
+
+  "Jovas Object": {
+    "prefix": "obj",
+    "body": [
+      "let ${1:name} = { ${2:key}: ${3:value} }"
+    ],
+    "description": "Object literal"
+  },
+
+  "Jovas Array": {
+    "prefix": "arr",
+    "body": [
+      "let ${1:name} = [${2:items}]"
+    ],
+    "description": "Array literal"
+  },
+
+  "Jovas Pipeline": {
+    "prefix": "pipe",
+    "body": [
+      "let result = ${1:data}",
+      "    |> ${2:filter}",
+      "    |> ${3:sort}",
+      "    |> ${4:limit}"
+    ],
+    "description": "Pipeline operator chain"
+  },
+
+  "Jovas HTTP Server": {
+    "prefix": "server",
+    "body": [
+      "let app = server.create()",
+      "",
+      "fn on${1:Route}()",
+      "    print(\"${2:GET /}\")",
+      "",
+      "app.get(\"${3:/}\", on${1:Route})",
+      "app.listen(${4:8080}, fn()",
+      "    print(\"Server running on port ${4:8080}\")"
+    ],
+    "description": "HTTP server setup"
+  },
+
+  "Jovas Database Connect": {
+    "prefix": "db",
+    "body": [
+      "let db = database.connect(\"${1:myapp}\")",
+      "",
+      "let col1 = { name: \"id\",   type: \"INTEGER\", pk: true }",
+      "let col2 = { name: \"${2:name}\", type: \"TEXT\", nullable: false }",
+      "db.createTable(\"${3:users}\", [col1, col2])"
+    ],
+    "description": "JovasDB connection and table setup"
+  },
+
+  "Jovas DB Insert": {
+    "prefix": "dbinsert",
+    "body": [
+      "db.insert(\"${1:table}\", { ${2:key}: ${3:value} })"
+    ],
+    "description": "Insert row into JovasDB"
+  },
+
+  "Jovas DB Select": {
+    "prefix": "dbselect",
+    "body": [
+      "let ${1:rows} = db.select(\"${2:table}\", { ${3:key}: ${4:value} })"
+    ],
+    "description": "Select rows from JovasDB"
+  },
+
+  "Jovas DB Ask": {
+    "prefix": "dbask",
+    "body": [
+      "let ${1:results} = db.ask(\"${2:find all active users}\")"
+    ],
+    "description": "Natural language DB query"
+  },
+
+  "Jovas DB Transaction": {
+    "prefix": "dbtx",
+    "body": [
+      "let tx = db.begin()",
+      "tx.insert(\"${1:table}\", { ${2:key}: ${3:value} })",
+      "tx.commit()"
+    ],
+    "description": "Database transaction"
+  },
+
+  "Jovas Auth Sign": {
+    "prefix": "sign",
+    "body": [
+      "let token = auth.sign({ ${1:userId}: ${2:1} }, \"${3:secret}\")"
+    ],
+    "description": "Sign a JWT token"
+  },
+
+  "Jovas Auth Verify": {
+    "prefix": "verify",
+    "body": [
+      "let payload = auth.verify(${1:token}, \"${2:secret}\")"
+    ],
+    "description": "Verify a JWT token"
+  },
+
+  "Jovas Email Send": {
+    "prefix": "email",
+    "body": [
+      "email.send({",
+      "    to:      \"${1:user@example.com}\",",
+      "    subject: \"${2:Subject}\",",
+      "    body:    \"${3:Hello!}\"",
+      "})"
+    ],
+    "description": "Send an email"
+  },
+
+  "Jovas Email Template": {
+    "prefix": "emailt",
+    "body": [
+      "email.sendTemplate(\"${1:welcome}\", { name: ${2:name}, app: \"${3:MyApp}\" }, \"${4:user@example.com}\")"
+    ],
+    "description": "Send email from template"
+  },
+
+  "Jovas Security Hash": {
+    "prefix": "hash",
+    "body": [
+      "let ${1:hashed} = security.hash(${2:password})",
+      "let ${3:valid}  = security.verify(${2:password}, ${1:hashed})"
+    ],
+    "description": "Hash and verify a password"
+  },
+
+  "Jovas Security JWT": {
+    "prefix": "jwt",
+    "body": [
+      "let token   = security.jwtSign({ ${1:userId}: ${2:1} }, \"${3:secret}\", ${4:3600})",
+      "let payload = security.jwtVerify(token, \"${3:secret}\")"
+    ],
+    "description": "JWT sign and verify"
+  },
+
+  "Jovas Validate": {
+    "prefix": "validate",
+    "body": [
+      "let result = security.validate(${1:data}, {",
+      "    ${2:email}: { required: true, type: \"email\" },",
+      "    ${3:name}:  { required: true, minLength: 2 }",
+      "})",
+      "if result.valid == false",
+      "    print(result.errors)"
+    ],
+    "description": "Input validation"
+  },
+
+  "Jovas AI Ask": {
+    "prefix": "ai",
+    "body": [
+      "let ${1:reply} = ai.ask(\"${2:prompt}\")"
+    ],
+    "description": "Ask the AI module"
+  },
+
+  "Jovas AI Sentiment": {
+    "prefix": "sentiment",
+    "body": [
+      "let ${1:result} = ai.sentiment(\"${2:text}\")",
+      "print(${1:result}.sentiment)"
+    ],
+    "description": "AI sentiment analysis"
+  },
+
+  "Jovas Deploy": {
+    "prefix": "deploy",
+    "body": [
+      "deploy.to(\"${1:cloud}\", { region: \"${2:us-east-1}\", scale: \"${3:auto}\" })"
+    ],
+    "description": "One-line deployment"
+  },
+
+  "Jovas Realtime Sync": {
+    "prefix": "sync",
+    "body": [
+      "realtime.sync(\"${1:channel}\", fn(${2:data})",
+      "    print(${2:data})",
+      ")"
+    ],
+    "description": "Subscribe to realtime channel"
+  },
+
+  "Jovas Log": {
+    "prefix": "log",
+    "body": [
+      "log.${1|info,warn,error,debug,fatal|}([\"${2:message}\", { ${3:key}: ${4:value} }])"
+    ],
+    "description": "Log a message"
+  },
+
+  "Jovas Debug Breakpoint": {
+    "prefix": "bp",
+    "body": [
+      "debug.breakpoint(\"${1:functionName}\", ${2:0})"
+    ],
+    "description": "Set a breakpoint"
+  },
+
+  "Jovas Debug Inspect": {
+    "prefix": "inspect",
+    "body": [
+      "debug.inspect({ ${1:variable}: ${1:variable} })"
+    ],
+    "description": "Inspect variables"
+  },
+
+  "Jovas Format Code": {
+    "prefix": "fmt",
+    "body": [
+      "let ${1:formatted} = fmt.format(${2:source})"
+    ],
+    "description": "Format Jovas source code"
+  },
+
+  "Jovas Lint Code": {
+    "prefix": "lint",
+    "body": [
+      "let ${1:result} = lint.check(${2:source})",
+      "if ${1:result}.clean == false",
+      "    print(${1:result}.issues)"
+    ],
+    "description": "Lint Jovas source code"
+  },
+
+  "Jovas Rate Limit": {
+    "prefix": "ratelimit",
+    "body": [
+      "let ${1:check} = rateLimit.check([\"${2:userId}\", ${3:100}, \"${4:1min}\"])",
+      "if ${1:check}.allowed == false",
+      "    print(\"Rate limit exceeded\")"
+    ],
+    "description": "Check rate limit"
+  },
+
+  "Jovas Config Load": {
+    "prefix": "config",
+    "body": [
+      "config.load(\".env\")",
+      "let ${1:value} = config.get(\"${2:KEY}\", \"${3:default}\")"
+    ],
+    "description": "Load environment config"
+  },
+
+  "Jovas Null Safe": {
+    "prefix": "safe",
+    "body": [
+      "let ${1:value} = ${2:obj}?.${3:prop}?.${4:nested}"
+    ],
+    "description": "Null-safe property access"
+  },
+
+  "Jovas Full App": {
+    "prefix": "app",
+    "body": [
+      "// ${1:MyApp} — built with Jovas v1.0",
+      "",
+      "import json",
+      "",
+      "const APP  = \"${1:MyApp}\"",
+      "const PORT = ${2:8080}",
+      "",
+      "let db = database.connect(\"${3:mydb}\")",
+      "",
+      "fn onHome()",
+      "    print(\"\\${APP} is running!\")",
+      "",
+      "let app = server.create()",
+      "app.get(\"/\", onHome)",
+      "app.listen(PORT, fn()",
+      "    print(\"\\${APP} started on port \\${PORT}\")",
+      ")",
+      "",
+      "log.info([\"\\${APP} initialized\"])"
+    ],
+    "description": "Full Jovas application boilerplate"
+  }
+}

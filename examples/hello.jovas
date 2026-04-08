@@ -1,0 +1,13 @@
+// ─────────────────────────────────────────
+//  examples/hello.jovas
+//  The classic Hello World in Jovas
+// ─────────────────────────────────────────
+
+const LANG = "Jovas"
+let name   = "World"
+
+fn greet(name)
+    return "Hello, ${name}! Welcome to ${LANG}."
+
+print(greet(name))
+print(greet("Dustin"))

@@ -1,0 +1,82 @@
+// ─────────────────────────────────────────────
+//  examples/security.jovas
+//  Full security module showcase
+// ─────────────────────────────────────────────
+
+print("=== Jovas Security Module ===")
+
+// ── 1. Password Hashing ──
+print("\n-- Password Hashing --")
+let password = "mysecretpassword"
+let hashed   = security.hash(password)
+print("Hash:    ${hashed}")
+
+let valid   = security.verify(password, hashed)
+let invalid = security.verify("wrongpassword", hashed)
+print("Correct: ${valid}")
+print("Wrong:   ${invalid}")
+
+// ── 2. JWT ──
+print("\n-- JWT Tokens --")
+let token = security.jwtSign({ userId: 42, role: "admin", name: "Alice" }, "jovas_secret", 3600)
+print("Token: ${token}")
+
+let payload = security.jwtVerify(token, "jovas_secret")
+print("Valid:  ${payload.valid}")
+print("UserId: ${payload.payload.userId}")
+
+let badToken = security.jwtVerify("invalid.token.here", "jovas_secret")
+print("Bad token valid: ${badToken.valid}")
+
+// ── 3. Input Validation ──
+print("\n-- Input Validation --")
+let goodData = { name: "Alice", email: "alice@jovas.dev", age: 28, password: "secret123" }
+let badData  = { name: "A", email: "notanemail", age: 15, password: "123" }
+let rules    = { name: { required: true, minLength: 2 }, email: { required: true, type: "email" }, age: { required: true, min: 18 }, password: { required: true, minLength: 6 } }
+
+let goodResult = security.validate(goodData, rules)
+let badResult  = security.validate(badData, rules)
+print("Good data valid: ${goodResult.valid}")
+print("Bad data valid:  ${badResult.valid}")
+print("Errors:          ${badResult.errors}")
+
+// ── 4. Role-Based Permissions ──
+print("\n-- Role-Based Permissions --")
+security.defineRole("superadmin", ["read", "write", "delete", "manage", "deploy"])
+security.defineRole("admin",      ["read", "write", "delete"])
+security.defineRole("moderator",  ["read", "write"])
+security.defineRole("user",       ["read"])
+
+let actions = ["read", "write", "delete", "manage", "deploy"]
+let roles   = ["superadmin", "admin", "moderator", "user"]
+
+for action in actions
+    let canSuperadmin = security.permit({ id: 1, role: "superadmin" }, action)
+    let canAdmin      = security.permit({ id: 2, role: "admin" },      action)
+    let canUser       = security.permit({ id: 3, role: "user" },       action)
+    print("${action}: superadmin=${canSuperadmin} admin=${canAdmin} user=${canUser}")
+
+// ── 5. CORS Headers ──
+print("\n-- CORS Headers --")
+let corsHeaders = security.cors({
+    origins:     ["https://jovas.dev", "https://app.jovas.dev"],
+    methods:     ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+})
+print("CORS configured: ${corsHeaders}")
+
+// ── 6. Input Sanitization ──
+print("\n-- Sanitization --")
+let unsafe = "<script>alert('xss')</script> Hello & World"
+let safe   = security.sanitize(unsafe)
+print("Unsafe: ${unsafe}")
+print("Safe:   ${safe}")
+
+// ── 7. Secret Generation ──
+print("\n-- Secret Generation --")
+let secret1 = security.generateSecret(32)
+let secret2 = security.generateSecret(64)
+print("Secret 32: ${secret1}")
+print("Secret 64: ${secret2}")
+
+print("\n✅ Security module demo complete!")

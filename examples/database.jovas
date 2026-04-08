@@ -1,0 +1,69 @@
+// ─────────────────────────────────────────────
+//  examples/database.jovas
+//  JovasDB CRUD operations and NLQ demo
+// ─────────────────────────────────────────────
+
+let db = database.connect("shop")
+
+// ── Schema ──
+let pc1 = { name: "id",       type: "INTEGER", pk: true }
+let pc2 = { name: "name",     type: "TEXT",    nullable: false }
+let pc3 = { name: "price",    type: "FLOAT",   nullable: false }
+let pc4 = { name: "stock",    type: "INTEGER", default: 0 }
+let pc5 = { name: "category", type: "TEXT",    default: "general" }
+let pc6 = { name: "active",   type: "BOOLEAN", default: true }
+let productCols = [pc1, pc2, pc3, pc4, pc5, pc6]
+let oc1 = { name: "id",         type: "INTEGER", pk: true }
+let oc2 = { name: "product_id", type: "INTEGER" }
+let oc3 = { name: "quantity",   type: "INTEGER", nullable: false }
+let oc4 = { name: "total",      type: "FLOAT",   nullable: false }
+let oc5 = { name: "status",     type: "TEXT",    default: "pending" }
+let orderCols = [oc1, oc2, oc3, oc4, oc5]
+
+db.createTable("products", productCols)
+db.createTable("orders",   orderCols)
+
+// ── Insert products ──
+db.insert("products", { id: 1, name: "Laptop",  price: 999.0,  stock: 10, category: "electronics" })
+db.insert("products", { id: 2, name: "Phone",   price: 499.0,  stock: 25, category: "electronics" })
+db.insert("products", { id: 3, name: "Tablet",  price: 349.0,  stock: 0,  category: "electronics", active: false })
+db.insert("products", { id: 4, name: "Desk",    price: 250.0,  stock: 5,  category: "furniture" })
+db.insert("products", { id: 5, name: "Monitor", price: 320.0,  stock: 8,  category: "electronics" })
+
+// ── CRUD ──
+let all      = db.select("products")
+let inStock  = db.select("products", { active: true })
+let laptop   = db.findOne("products", { name: "Laptop" })
+
+print("All products:     ${len(all)}")
+print("In stock:         ${len(inStock)}")
+print("Laptop price:     ${laptop.price}")
+
+// ── Update ──
+db.update("products", { id: 1 }, { price: 899.0, stock: 8 })
+let updated = db.findOne("products", { id: 1 })
+print("Laptop new price: ${updated.price}")
+
+// ── Natural language queries ──
+print("\n── Natural Language Queries ──")
+let activeElectronics = db.ask("find all active products")
+print("Active products:  ${len(activeElectronics)}")
+
+// ── Transactions ──
+print("\n── Transactions ──")
+let tx = db.begin()
+tx.insert("orders", { id: 1, product_id: 1, quantity: 2, total: 1798.0 })
+tx.insert("orders", { id: 2, product_id: 2, quantity: 1, total: 499.0 })
+tx.update("products", { id: 1 }, { stock: 6 })
+tx.commit()
+
+print("Orders placed:    ${db.count(\"orders\")}")
+print("Laptop stock now: ${db.findOne(\"products\", { id: 1 }).stock}")
+
+// ── Rollback demo ──
+let tx2 = db.begin()
+tx2.insert("orders", { id: 3, product_id: 99, quantity: 1, total: 0.0 })
+tx2.rollback()
+print("After rollback:   ${db.count(\"orders\")} orders (unchanged)")
+
+db.describe()

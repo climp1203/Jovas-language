@@ -1,0 +1,82 @@
+// ─────────────────────────────────────────────
+//  examples/auth.jovas
+//  JWT Authentication flow in Jovas
+// ─────────────────────────────────────────────
+
+const SECRET  = "jovas_secret_key"
+const APP     = "JovasAuth"
+
+let db = database.connect("auth_example")
+
+let c1 = { name: "id",       type: "INTEGER", pk: true }
+let c2 = { name: "name",     type: "TEXT",    nullable: false }
+let c3 = { name: "email",    type: "TEXT",    unique: true }
+let c4 = { name: "password", type: "TEXT",    nullable: false }
+let c5 = { name: "role",     type: "TEXT",    default: "user" }
+let c6 = { name: "active",   type: "BOOLEAN", default: true }
+db.createTable("users", [c1, c2, c3, c4, c5, c6])
+
+// ── Register a new user ──
+fn register(name, email, password)
+    let validation = security.validate({ name: name, email: email, password: password }, { name: { required: true, minLength: 2 }, email: { required: true, type: "email" }, password: { required: true, minLength: 6 } })
+    if validation.valid == false
+        return { ok: false, errors: validation.errors }
+
+    let hashed = security.hash(password)
+    let nextId = db.count("users") + 1
+    db.insert("users", {
+        id: nextId, name: name,
+        email: email, password: hashed
+    })
+    let token = security.jwtSign({ userId: nextId, email: email }, SECRET, 3600)
+    log.info(["User registered", { name: name, email: email }])
+    return { ok: true, token: token, userId: nextId }
+
+// ── Login ──
+fn login(email, password)
+    let user = db.findOne("users", { email: email })
+    if user == null
+        return { ok: false, error: "User not found" }
+
+    let valid = security.verify(password, user.password)
+    if valid == false
+        return { ok: false, error: "Invalid password" }
+
+    let token = security.jwtSign({ userId: user.id, email: email, role: user.role }, SECRET, 3600)
+    log.info(["User logged in", { email: email }])
+    return { ok: true, token: token, user: user.name }
+
+// ── Verify token ──
+fn verifyToken(token)
+    let result = security.jwtVerify(token, SECRET)
+    if result.valid == false
+        return { ok: false, error: result.error }
+    return { ok: true, payload: result.payload }
+
+// ── Protected route example ──
+fn getProfile(token)
+    let auth = verifyToken(token)
+    if auth.ok == false
+        return { error: "Unauthorized" }
+    let user = db.findOne("users", { id: auth.payload.userId })
+    return { name: user.name, email: user.email, role: user.role }
+
+// ── Run demo ──
+print("=== Auth Demo ===")
+
+let reg = register("Alice", "alice@jovas.dev", "secret123")
+print("Register: ${reg}")
+
+let reg2 = register("Bob", "bob@jovas.dev", "pass456")
+print("Register: ${reg2}")
+
+let logResult = login("alice@jovas.dev", "secret123")
+print("Login: ok=${logResult.ok}, user=${logResult.user}")
+
+let badLogin = login("alice@jovas.dev", "wrongpass")
+print("Bad login: ${badLogin.error}")
+
+let profile = getProfile(logResult.token)
+print("Profile: ${profile}")
+
+print("Total users: ${db.count(\"users\")}")

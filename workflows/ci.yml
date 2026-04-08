@@ -1,0 +1,215 @@
+name: Jovas CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  # ── 1. Syntax Check ──────────────────────────
+  syntax-check:
+    name: Syntax Check (.jovas files)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check all .jovas example files
+        run: |
+          echo "🔍 Checking syntax of all .jovas files..."
+          for f in examples/*.jovas; do
+            echo "  Checking: $f"
+            python run.py check "$f"
+          done
+          echo "✅ All .jovas files passed syntax check"
+
+  # ── 2. Run Core Examples ─────────────────────
+  run-examples:
+    name: Run Example Programs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run hello.jovas
+        run: python run.py run examples/hello.jovas
+
+      - name: Run fullapp.jovas
+        run: python run.py run examples/fullapp.jovas
+
+      - name: Run auth.jovas
+        run: python run.py run examples/auth.jovas
+
+      - name: Run database.jovas
+        run: python run.py run examples/database.jovas
+
+      - name: Run security.jovas
+        run: python run.py run examples/security.jovas
+
+      - name: Run api.jovas
+        run: python run.py run examples/api.jovas
+
+  # ── 3. Language Core Tests ───────────────────
+  test-language:
+    name: Language Core Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Jovas test suite
+        run: python test_jovas.py
+
+  # ── 4. JovasDB Tests ─────────────────────────
+  test-jovasdb:
+    name: JovasDB Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run JovasDB demo (smoke test)
+        run: python jovasdb.py demo
+
+      - name: Verify .jdb file created
+        run: |
+          if [ -f "./jovasdb_data/demo_app.jdb" ]; then
+            echo "✅ .jdb file created successfully"
+          else
+            echo "❌ .jdb file not found"
+            exit 1
+          fi
+
+  # ── 5. Module Tests ───────────────────────────
+  test-modules:
+    name: Missing Modules Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run jovas_modules demo
+        run: python jovas_modules.py
+
+  # ── 6. Cross-platform ─────────────────────────
+  cross-platform:
+    name: Cross-platform (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Run version check
+        run: python run.py version
+
+      - name: Run hello world
+        run: python run.py run examples/hello.jovas
+
+  # ── 7. Lint & Format Check ────────────────────
+  lint-check:
+    name: Jovas Linter Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run linter on all examples
+        run: |
+          python -c "
+          import sys, os
+          sys.path.insert(0, '.')
+          from jovas_modules import JovasLinter
+          linter = JovasLinter()
+          failed = []
+          for fname in os.listdir('examples'):
+              if fname.endswith('.jovas'):
+                  with open(f'examples/{fname}') as f:
+                      source = f.read()
+                  result = linter.check([source])
+                  errors = result.get('errors', 0)
+                  if errors > 0:
+                      failed.append(f'{fname}: {errors} error(s)')
+          if failed:
+              print('Linter errors found:')
+              for f in failed: print(f'  {f}')
+              sys.exit(1)
+          else:
+              print('All files passed linting')
+          "
+
+  # ── 8. VS Code Extension Validation ──────────
+  vscode-extension:
+    name: VS Code Extension Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate extension package.json
+        run: |
+          cd jovas-vscode
+          node -e "
+            const pkg = require('./package.json');
+            console.log('Extension:', pkg.displayName, 'v' + pkg.version);
+            console.log('Contributes:', Object.keys(pkg.contributes).join(', '));
+            const required = ['languages','grammars','snippets','themes','commands'];
+            required.forEach(k => {
+              if (!pkg.contributes[k]) { console.error('Missing:', k); process.exit(1); }
+            });
+            console.log('✅ package.json valid');
+          "
+
+      - name: Validate grammar file
+        run: |
+          node -e "
+            const g = require('./jovas-vscode/syntaxes/jovas.tmLanguage.json');
+            console.log('Grammar:', g.name, '| Scope:', g.scopeName);
+            console.log('Patterns:', Object.keys(g.repository).length, 'rules');
+            console.log('✅ Grammar valid');
+          "
+
+      - name: Count snippets
+        run: |
+          node -e "
+            const s = require('./jovas-vscode/snippets/jovas.json');
+            console.log('Snippets:', Object.keys(s).length, 'defined');
+            console.log('✅ Snippets valid');
+          "

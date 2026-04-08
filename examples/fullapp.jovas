@@ -1,0 +1,67 @@
+// ─────────────────────────────────────────
+//  examples/fullapp.jovas
+//  A complete Jovas backend application
+// ─────────────────────────────────────────
+
+import json
+
+const APP   = "MyApp"
+const PORT  = 8080
+
+// ── Auth ──────────────────────────────────
+fn login(email, password)
+    let token = auth.sign({ email: email }, "secret")
+    log.info(["User logged in", { email: email }])
+    return { token: token, status: "ok" }
+
+// ── Users ─────────────────────────────────
+async fn getUsers()
+    let users = await db.ask("find all active users")
+    return users
+
+async fn getAdmins()
+    let admins = await db.ask("find all admins")
+    return admins
+
+// ── AI ────────────────────────────────────
+fn analyzeFeedback(text)
+    let result = ai.sentiment(text)
+    let summary = ai.summarize(text)
+    return { sentiment: result, summary: summary }
+
+// ── Server ────────────────────────────────
+fn onStart()
+    print("${APP} running on port ${PORT}")
+
+fn startServer()
+    let app = server.create()
+    app.get("/users", getUsers)
+    app.post("/login", login)
+    app.listen(PORT, onStart)
+        print("${APP} running on port ${PORT}")
+
+// ── Deploy ────────────────────────────────
+fn deployApp()
+    let result = deploy.to("cloud", { region: "us-east-1", scale: "auto" })
+    log.info(["Deployed", { url: result }])
+    return result
+
+// ── Run ───────────────────────────────────
+log.info(["Starting ${APP}..."])
+
+let users   = getUsers()
+let admins  = getAdmins()
+
+print("Users : ${users}")
+print("Admins: ${admins}")
+
+let feedback = analyzeFeedback("Jovas is an awesome and great language!")
+print("Feedback: ${feedback}")
+
+let auth_result = login("alex@jovas.dev", "pass123")
+print("Login: ${auth_result}")
+
+startServer()
+deployApp()
+
+log.info(["${APP} initialized successfully"])

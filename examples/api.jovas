@@ -1,0 +1,110 @@
+// ─────────────────────────────────────────────
+//  examples/api.jovas
+//  Auto-generated REST API with expose fn
+// ─────────────────────────────────────────────
+
+import json
+
+const PORT = 8080
+const APP  = "JovasAPI"
+
+// ── Database setup ──
+let db = database.connect("api_example")
+
+let u1 = { name: "id",    type: "INTEGER", pk: true }
+let u2 = { name: "name",  type: "TEXT",    nullable: false }
+let u3 = { name: "email", type: "TEXT",    unique: true }
+let u4 = { name: "role",  type: "TEXT",    default: "user" }
+let u5 = { name: "active",type: "BOOLEAN", default: true }
+let userCols = [u1, u2, u3, u4, u5]
+let p1 = { name: "id",        type: "INTEGER", pk: true }
+let p2 = { name: "title",     type: "TEXT",    nullable: false }
+let p3 = { name: "content",   type: "TEXT" }
+let p4 = { name: "user_id",   type: "INTEGER" }
+let p5 = { name: "published", type: "BOOLEAN", default: false }
+let postCols = [p1, p2, p3, p4, p5]
+
+db.createTable("users", userCols)
+db.createTable("posts", postCols)
+
+// Seed data
+db.insert("users", { id: 1, name: "Alice", email: "alice@jovas.dev", role: "admin" })
+db.insert("users", { id: 2, name: "Bob",   email: "bob@jovas.dev",   role: "user" })
+db.insert("posts", { id: 1, title: "Hello Jovas", content: "First post!", user_id: 1, published: true })
+db.insert("posts", { id: 2, title: "Getting Started", content: "How to use Jovas.", user_id: 1, published: true })
+
+// ── Auto-generated endpoints via expose fn ──
+// Each expose fn automatically creates a REST endpoint
+
+expose fn getUsers()
+    return db.select("users")
+
+expose fn getUser(id)
+    let user = db.findOne("users", { id: int(id) })
+    if user == null
+        return { error: "User not found" }
+    return user
+
+expose fn createUser(name, email)
+    let vd = { name: name, email: email }
+    let vr = { name: { required: true }, email: { required: true, type: "email" } }
+    let validation = security.validate(vd, vr)
+    if validation.valid == false
+        return { error: validation.errors }
+    let nextId = db.count("users") + 1
+    let user = db.insert("users", { id: nextId, name: name, email: email })
+    email.send({ to: email, subject: "Welcome to ${APP}!", body: "Hi ${name}, welcome!" })
+    return { ok: true, user: user }
+
+expose fn updateUser(id, name, role)
+    let n = db.update("users", { id: int(id) }, { name: name, role: role })
+    return { updated: n }
+
+expose fn deleteUser(id)
+    let n = db.delete("users", { id: int(id) })
+    return { deleted: n }
+
+expose fn getPosts()
+    return db.select("posts", { published: true })
+
+expose fn getPost(id)
+    return db.findOne("posts", { id: int(id) })
+
+expose fn createPost(title, content, userId)
+    let nextId = db.count("posts") + 1
+    return db.insert("posts", { id: nextId, title: title, content: content, user_id: int(userId) })
+
+expose fn searchUsers(query)
+    return db.ask("find all active users")
+
+expose fn stats()
+    let u = db.count("users")
+    let p = db.count("posts")
+    let a = db.count("users", { active: true })
+    return { users: u, posts: p, active: a }
+
+// ── Regular server routes ──
+fn onHome()
+    print("GET / — ${APP} is running")
+
+fn onHealth()
+    print("GET /health — ok")
+
+fn onStart()
+    print("${APP} running on http://localhost:${PORT}")
+
+// ── Start server ──
+let app = server.create()
+app.get("/",       onHome)
+app.get("/health", onHealth)
+app.listen(PORT,   onStart)
+
+// ── Demo: call the exposed endpoints ──
+print("\n── Auto-generated API Endpoints ──")
+print("GET    /api/getUsers   → ${getUsers()}")
+print("GET    /api/getUser    → ${getUser(1)}")
+print("POST   /api/createUser → (creates user)")
+print("GET    /api/getPosts   → ${len(getPosts())} posts")
+print("GET    /api/stats      → ${stats()}")
+
+log.info(["${APP} API ready", { port: PORT, endpoints: 9 }])

@@ -1,0 +1,257 @@
+{
+  "name": "jovas-language",
+  "displayName": "Jovas Language",
+  "description": "The official Jovas language extension — syntax highlighting, snippets, IntelliSense, and more for .jovas files",
+  "version": "1.0.0",
+  "publisher": "jovas",
+  "icon": "icons/jovas-icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jovas-lang/jovas-vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Themes",
+    "Formatters",
+    "Linters"
+  ],
+  "keywords": [
+    "jovas",
+    "jovas-lang",
+    "backend",
+    "ai-native",
+    "jovasdb"
+  ],
+  "activationEvents": [
+    "onLanguage:jovas"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+
+    "languages": [
+      {
+        "id": "jovas",
+        "aliases": ["Jovas", "jovas"],
+        "extensions": [".jovas", ".jo"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/jovas-file-light.png",
+          "dark":  "./icons/jovas-file-dark.png"
+        }
+      }
+    ],
+
+    "grammars": [
+      {
+        "language": "jovas",
+        "scopeName": "source.jovas",
+        "path": "./syntaxes/jovas.tmLanguage.json"
+      }
+    ],
+
+    "snippets": [
+      {
+        "language": "jovas",
+        "path": "./snippets/jovas.json"
+      }
+    ],
+
+    "themes": [
+      {
+        "label": "Jovas Dark (Gold)",
+        "uiTheme": "vs-dark",
+        "path": "./themes/jovas-dark.json"
+      }
+    ],
+
+    "commands": [
+      {
+        "command": "jovas.runFile",
+        "title": "Jovas: Run File",
+        "icon": "$(play)"
+      },
+      {
+        "command": "jovas.lintFile",
+        "title": "Jovas: Lint File",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "jovas.formatFile",
+        "title": "Jovas: Format File",
+        "icon": "$(symbol-color)"
+      },
+      {
+        "command": "jovas.openRepl",
+        "title": "Jovas: Open REPL",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "jovas.checkSyntax",
+        "title": "Jovas: Check Syntax",
+        "icon": "$(check)"
+      },
+      {
+        "command": "jovas.newFile",
+        "title": "Jovas: New .jovas File",
+        "icon": "$(new-file)"
+      }
+    ],
+
+    "menus": {
+      "editor/title": [
+        {
+          "command": "jovas.runFile",
+          "when": "resourceExtname == .jovas",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "jovas.runFile",
+          "when": "resourceExtname == .jovas",
+          "group": "jovas@1"
+        },
+        {
+          "command": "jovas.lintFile",
+          "when": "resourceExtname == .jovas",
+          "group": "jovas@2"
+        },
+        {
+          "command": "jovas.formatFile",
+          "when": "resourceExtname == .jovas",
+          "group": "jovas@3"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "jovas.runFile",
+          "when": "resourceExtname == .jovas",
+          "group": "jovas"
+        }
+      ]
+    ],
+
+    "keybindings": [
+      {
+        "command": "jovas.runFile",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "resourceExtname == .jovas"
+      },
+      {
+        "command": "jovas.lintFile",
+        "key": "ctrl+shift+l",
+        "mac": "cmd+shift+l",
+        "when": "resourceExtname == .jovas"
+      },
+      {
+        "command": "jovas.formatFile",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f",
+        "when": "resourceExtname == .jovas"
+      },
+      {
+        "command": "jovas.openRepl",
+        "key": "ctrl+shift+j",
+        "mac": "cmd+shift+j"
+      }
+    ],
+
+    "configuration": {
+      "title": "Jovas",
+      "properties": {
+        "jovas.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Path to Python interpreter used to run Jovas programs"
+        },
+        "jovas.runnerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to run.py launcher. Leave empty to auto-detect."
+        },
+        "jovas.autoLintOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically lint .jovas files on save"
+        },
+        "jovas.autoFormatOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically format .jovas files on save"
+        },
+        "jovas.showOutputPanel": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show output panel when running Jovas files"
+        },
+        "jovas.dbDataDir": {
+          "type": "string",
+          "default": "./jovasdb_data",
+          "description": "Directory for JovasDB .jdb database files"
+        },
+        "jovas.theme": {
+          "type": "string",
+          "enum": ["gold", "default"],
+          "default": "gold",
+          "description": "Jovas color theme preference"
+        }
+      }
+    },
+
+    "colors": [
+      {
+        "id": "jovas.keyword",
+        "description": "Color for Jovas keywords",
+        "defaults": { "dark": "#FFD700", "light": "#B8860B", "highContrast": "#FFD700" }
+      },
+      {
+        "id": "jovas.function",
+        "description": "Color for Jovas function names",
+        "defaults": { "dark": "#60A5FA", "light": "#1D4ED8", "highContrast": "#60A5FA" }
+      }
+    ],
+
+    "views": {
+      "explorer": [
+        {
+          "id": "jovasExplorer",
+          "name": "Jovas",
+          "icon": "$(database)",
+          "contextualTitle": "Jovas Explorer"
+        }
+      ]
+    },
+
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "jovas-sidebar",
+          "title": "Jovas",
+          "icon": "$(symbol-misc)"
+        }
+      ]
+    }
+  },
+
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+
+  "dependencies": {},
+
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

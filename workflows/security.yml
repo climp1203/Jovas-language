@@ -1,0 +1,210 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run every Monday at 9am UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+
+  # ── 1. Secret Detection ──────────────────────
+  secret-scan:
+    name: Scan for Leaked Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for secret scanning
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "🔍 Scanning for hardcoded secrets..."
+          # Check for common secret patterns
+          FOUND=0
+
+          # API keys
+          if grep -rn "sk-[a-zA-Z0-9]{32,}" --include="*.py" --include="*.jo" --include="*.jovas" .; then
+            echo "❌ Possible API key found"
+            FOUND=1
+          fi
+
+          # JWT secrets hardcoded
+          if grep -rn '"secret"' --include="*.py" --include="*.jo" | grep -v "test\|example\|demo\|#"; then
+            echo "⚠️  Possible hardcoded JWT secret"
+          fi
+
+          # Passwords in code
+          if grep -rn "password\s*=\s*['\"][^'\"]\{6,\}['\"]" --include="*.py" | grep -v "test\|example\|#"; then
+            echo "⚠️  Possible hardcoded password"
+          fi
+
+          # .env file accidentally committed
+          if [ -f ".env" ]; then
+            echo "❌ .env file found in repo — remove it immediately!"
+            FOUND=1
+          fi
+
+          if [ $FOUND -eq 1 ]; then
+            echo "Security scan FAILED — fix issues above"
+            exit 1
+          else
+            echo "✅ No hardcoded secrets found"
+          fi
+
+  # ── 2. Dependency Safety ─────────────────────
+  dependency-check:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check for known vulnerable packages
+        run: |
+          pip install safety --quiet
+          # Only check if requirements.txt exists
+          if [ -f "requirements.txt" ]; then
+            safety check -r requirements.txt
+          else
+            echo "ℹ️  No requirements.txt — skipping package scan"
+            echo "✅ Core Jovas has no external dependencies"
+          fi
+
+  # ── 3. Code Security Scan ────────────────────
+  code-scan:
+    name: Static Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Bandit (Python security scanner)
+        run: pip install bandit --quiet
+
+      - name: Run Bandit security scan
+        run: |
+          echo "🔍 Running static security analysis..."
+          bandit -r . \
+            --exclude ./.git,./jovas-website,./jovas-vscode \
+            -ll \
+            --format txt \
+            || true
+          echo "✅ Security scan complete"
+
+  # ── 4. File Permission Check ─────────────────
+  permission-check:
+    name: Check File Permissions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for world-writable files
+        run: |
+          echo "🔍 Checking file permissions..."
+          ISSUES=0
+
+          # Find world-writable files (security risk)
+          WW=$(find . -not -path './.git/*' -perm -002 -type f 2>/dev/null)
+          if [ -n "$WW" ]; then
+            echo "⚠️  World-writable files found:"
+            echo "$WW"
+            ISSUES=1
+          fi
+
+          # Check .env is gitignored
+          if ! grep -q "\.env$" .gitignore 2>/dev/null; then
+            echo "❌ .env not in .gitignore"
+            ISSUES=1
+          else
+            echo "✅ .env is gitignored"
+          fi
+
+          # Check jovasdb data is gitignored
+          if grep -q "jovasdb_data/\*.jdb" .gitignore 2>/dev/null; then
+            echo "✅ .jdb files are gitignored"
+          else
+            echo "⚠️  .jdb files may not be gitignored"
+          fi
+
+          echo "✅ Permission check complete"
+
+  # ── 5. Input Validation Tests ────────────────
+  security-tests:
+    name: Security Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run security module tests
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          from jovas_security import (
+              JovasSandbox, DBSecurity, RateLimiter,
+              InputSanitizer, SecretsManager
+          )
+          errors = []
+
+          # Sandbox tests
+          sb = JovasSandbox()
+          assert sb.validate_source('let x = 1')['safe'] == True
+          assert sb.validate_source('import os')['safe'] == False
+          assert sb.validate_source('exec(compile(\"x\",\"f\",\"exec\"))')['safe'] == False
+          print('✅ Sandbox tests passed')
+
+          # DB security tests
+          clean = DBSecurity.sanitize_value('<script>xss</script>')
+          assert '<script>' not in clean
+          try:
+              DBSecurity.sanitize_table_name('users; DROP TABLE')
+              errors.append('DB injection not blocked')
+          except ValueError:
+              pass
+          try:
+              DBSecurity.sanitize_nlq('drop table users')
+              errors.append('NLQ injection not blocked')
+          except ValueError:
+              pass
+          print('✅ DB security tests passed')
+
+          # Rate limiter tests
+          rl = RateLimiter()
+          results = [rl.allow('test', limit=3, window=60) for _ in range(5)]
+          assert results[:3] == [True, True, True]
+          assert results[3] == False
+          print('✅ Rate limiter tests passed')
+
+          # Input sanitizer tests
+          s = InputSanitizer
+          assert '&lt;' in s.html('<script>')
+          assert '..' not in s.filename('../../etc/passwd')
+          try:
+              s.url('http://localhost/admin')
+              errors.append('SSRF not blocked')
+          except ValueError:
+              pass
+          print('✅ Input sanitizer tests passed')
+
+          if errors:
+              print('FAILED:', errors)
+              sys.exit(1)
+          print('✅ All security tests passed')
+          "

@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+# ─────────────────────────────────────────────
+#  JOVAS SHORTCUT LAUNCHER
+#  Lets you run: jovas app.jovas
+#                jovas repl
+#                jovas check app.jovas
+#                jovas version
+#
+#  Install (Unix/Mac):
+#    chmod +x jovas
+#    sudo cp jovas /usr/local/bin/jovas
+#
+#  Install (Windows):
+#    Add folder to PATH, rename to jovas.py
+#    or create a jovas.bat:
+#      @echo off
+#      python "%~dp0jovas" %*
+# ─────────────────────────────────────────────
+
+import sys
+import os
+
+# Find run.py next to this script
+here   = os.path.dirname(os.path.abspath(__file__))
+runner = os.path.join(here, "run.py")
+
+if not os.path.exists(runner):
+    print(f"[Jovas] Error: run.py not found in {here}")
+    sys.exit(1)
+
+# Pass all args through to run.py
+args = sys.argv[1:]
+
+# Smart defaults: jovas app.jovas → jovas run app.jovas
+if args and args[0].endswith((".jovas", ".jo")) and args[0] not in ("run","repl","check","version","help"):
+    args = ["run"] + args
+
+# Execute run.py with forwarded args
+import runpy
+sys.argv = ["run.py"] + args
+runpy.run_path(runner, run_name="__main__")

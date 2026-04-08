@@ -1,0 +1,82 @@
+// ─────────────────────────────────────────────
+//  examples/realtime.jovas
+//  Real-time chat room with presence
+// ─────────────────────────────────────────────
+
+const CHANNEL = "chat-room"
+const APP     = "JovasChat"
+
+print("=== ${APP} — Real-time Demo ===\n")
+
+// ── Message store ──
+let db = database.connect("chat")
+let m1 = { name: "id",      type: "INTEGER", pk: true }
+let m2 = { name: "from",    type: "TEXT",    nullable: false }
+let m3 = { name: "text",    type: "TEXT",    nullable: false }
+let m4 = { name: "channel", type: "TEXT",    default: "general" }
+let msgCols = [m1, m2, m3, m4]
+db.createTable("messages", msgCols)
+
+// ── Subscribe to channel ──
+fn onMessage(data)
+    print("  📨 [${data.from}]: ${data.text}")
+    let nextId = db.count("messages") + 1
+    let msgRow = { id: nextId, from: data.from, text: data.text, channel: CHANNEL }
+    db.insert("messages", msgRow)
+
+realtime.sync(CHANNEL, onMessage)
+
+// ── Listen for join/leave events ──
+realtime.on("userJoined", fn(data)
+    print("  👋 ${data.name} joined the room (${data.total} online)")
+)
+realtime.on("userLeft", fn(data)
+    print("  👋 ${data.name} left the room")
+)
+
+// ── Helper functions ──
+fn joinRoom(userId, name)
+    realtime.join(CHANNEL, userId)
+    let online = realtime.presence(CHANNEL)
+    realtime.emit("userJoined", { name: name, total: len(online) })
+
+fn leaveRoom(userId, name)
+    realtime.leave(CHANNEL, userId)
+    realtime.emit("userLeft", { name: name })
+
+fn sendMessage(from, text)
+    realtime.broadcast(CHANNEL, { from: from, text: text, ts: time.now() })
+
+fn getHistory()
+    return db.select("messages")
+
+// ── Simulate a chat session ──
+print("-- Users joining --")
+joinRoom("user-1", "Alice")
+joinRoom("user-2", "Bob")
+joinRoom("user-3", "Eve")
+
+print("\n-- Messages --")
+sendMessage("Alice", "Hey everyone! Jovas is awesome 🚀")
+sendMessage("Bob",   "Agreed! The AI module is incredible")
+sendMessage("Eve",   "Has anyone tried the NLQ feature?")
+sendMessage("Alice", "Yes! db.ask() is magic")
+sendMessage("Bob",   "One-line deploy is a game changer too")
+
+print("\n-- Presence --")
+let online = realtime.presence(CHANNEL)
+print("  Online: ${len(online)} user(s)")
+
+print("\n-- User leaving --")
+leaveRoom("user-3", "Eve")
+let afterLeave = realtime.presence(CHANNEL)
+print("  Online: ${len(afterLeave)} user(s)")
+
+print("\n-- Message history --")
+let history = getHistory()
+print("  Total messages stored: ${len(history)}")
+
+for msg in history
+    print("  [${msg.from}]: ${msg.text}")
+
+print("\n✅ ${APP} demo complete!")

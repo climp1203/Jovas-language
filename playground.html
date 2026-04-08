@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jovas Playground — Try Jovas Online</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #FFD700; --gold2: #E6B800; --gold3: #B8860B;
+  --black: #000; --dark: #0a0a0a; --dark2: #0f0f0f;
+  --card: #111; --border: rgba(255,215,0,0.12);
+  --text: #e8e8e8; --muted: #666;
+  --green: #4ADE80; --red: #F87171; --blue: #60A5FA;
+  --purple: #C084FC; --cyan: #22D3EE; --orange: #FB923C;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-ui: 'Syne', sans-serif;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: var(--font-ui);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  height: 48px;
+  background: var(--dark2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  gap: 1.5rem;
+  flex-shrink: 0;
+}
+.topbar-logo {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--gold);
+  letter-spacing: 0.1em;
+  text-decoration: none;
+}
+.topbar-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+}
+.topbar-sep { width: 1px; height: 20px; background: var(--border); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+
+.btn {
+  padding: 0.4rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 2px;
+}
+.btn:hover { color: var(--text); border-color: rgba(255,215,0,0.3); }
+
+.btn-run {
+  background: var(--gold);
+  color: #000;
+  border-color: var(--gold);
+  font-weight: 700;
+  padding: 0.4rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.btn-run:hover { background: #fff; border-color: #fff; }
+.btn-run::before { content: '▶'; font-size: 0.6rem; }
+
+/* ── MAIN LAYOUT ── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 240px 1fr 1fr;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--dark2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-section {
+  padding: 0.75rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold3);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.example-list { overflow-y: auto; flex: 1; }
+.example-item {
+  padding: 0.6rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.example-item:hover { color: var(--text); background: rgba(255,215,0,0.04); border-left-color: var(--border); }
+.example-item.active { color: var(--gold); border-left-color: var(--gold); background: rgba(255,215,0,0.06); }
+.example-icon { font-size: 0.9rem; }
+
+/* ── EDITOR PANE ── */
+.editor-pane {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.pane-header {
+  height: 36px;
+  background: var(--dark2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+.pane-title {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pane-file {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--gold3);
+}
+
+/* ── CODE EDITOR ── */
+.editor-wrapper {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+}
+.line-numbers {
+  padding: 1rem 0;
+  width: 44px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.65rem;
+  color: #333;
+  background: var(--dark);
+  border-right: 1px solid rgba(255,215,0,0.06);
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+}
+.line-numbers span { display: block; padding-right: 10px; }
+
+#editor {
+  flex: 1;
+  background: var(--dark);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.65rem;
+  padding: 1rem 1.25rem;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow-y: auto;
+  tab-size: 4;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  caret-color: var(--gold);
+}
+#editor::selection { background: rgba(255,215,0,0.2); }
+
+/* ── OUTPUT PANE ── */
+.output-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.output-tabs {
+  display: flex;
+  gap: 0;
+  background: var(--dark2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.output-tab {
+  padding: 0.5rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.output-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+.output-tab:hover:not(.active) { color: var(--text); }
+
+.output-body {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--dark);
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.out-line { display: block; margin-bottom: 0.1rem; }
+.out-info  { color: var(--text); }
+.out-ok    { color: var(--green); }
+.out-err   { color: var(--red); }
+.out-warn  { color: var(--gold); }
+.out-sys   { color: var(--muted); font-style: italic; }
+.out-db    { color: var(--cyan); }
+.out-ai    { color: var(--purple); }
+.out-mail  { color: var(--orange); }
+.out-sec   { color: #86efac; }
+
+.out-prompt {
+  color: var(--muted);
+  margin-right: 0.5rem;
+}
+
+/* Blinking cursor in output */
+.blink {
+  animation: blink 1s step-end infinite;
+  color: var(--gold);
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* Status bar */
+.status-bar {
+  height: 24px;
+  background: #0d0900;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  gap: 1.5rem;
+  flex-shrink: 0;
+}
+.status-item {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--gold3);
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.status-dot.running { background: var(--gold); animation: pulse 0.8s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ── SCROLLBARS ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.15); }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <a href="index.html" class="topbar-logo">Jovas</a>
+  <div class="topbar-sep"></div>
+  <span class="topbar-title">Playground</span>
+  <div class="topbar-right">
+    <button class="btn" onclick="clearOutput()">Clear</button>
+    <button class="btn" onclick="shareCode()">Share</button>
+    <button class="btn-run btn" onclick="runCode()">Run</button>
+  </div>
+</div>
+
+<!-- Main layout -->
+<div class="main">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-section">Examples</div>
+    <div class="example-list">
+      <div class="example-item active" onclick="loadExample('hello')">
+        <span class="example-icon">👋</span> Hello World
+      </div>
+      <div class="example-item" onclick="loadExample('functions')">
+        <span class="example-icon">⚙️</span> Functions
+      </div>
+      <div class="example-item" onclick="loadExample('classes')">
+        <span class="example-icon">🏛️</span> Classes
+      </div>
+      <div class="example-item" onclick="loadExample('database')">
+        <span class="example-icon">🗄️</span> JovasDB
+      </div>
+      <div class="example-item" onclick="loadExample('auth')">
+        <span class="example-icon">🔑</span> Auth & JWT
+      </div>
+      <div class="example-item" onclick="loadExample('security')">
+        <span class="example-icon">🔒</span> Security
+      </div>
+      <div class="example-item" onclick="loadExample('ai')">
+        <span class="example-icon">🤖</span> AI Module
+      </div>
+      <div class="example-item" onclick="loadExample('email')">
+        <span class="example-icon">📧</span> Email
+      </div>
+      <div class="example-item" onclick="loadExample('realtime')">
+        <span class="example-icon">⚡</span> Real-time
+      </div>
+      <div class="example-item" onclick="loadExample('deploy')">
+        <span class="example-icon">🚀</span> Deploy
+      </div>
+      <div class="example-item" onclick="loadExample('server')">
+        <span class="example-icon">🌐</span> HTTP Server
+      </div>
+      <div class="example-item" onclick="loadExample('pipeline')">
+        <span class="example-icon">|></span> Pipeline
+      </div>
+      <div class="example-item" onclick="loadExample('match')">
+        <span class="example-icon">🔀</span> Pattern Match
+      </div>
+      <div class="example-item" onclick="loadExample('fullapp')">
+        <span class="example-icon">✨</span> Full App
+      </div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top: auto;">Keyboard Shortcuts</div>
+    <div style="padding: 0.75rem 1rem;">
+      <div style="font-family: var(--font-mono); font-size: 0.62rem; color: var(--muted); line-height: 2;">
+        <span style="color: var(--gold3);">Ctrl+Enter</span> — Run<br>
+        <span style="color: var(--gold3);">Ctrl+L</span> — Clear output<br>
+        <span style="color: var(--gold3);">Ctrl+S</span> — Share<br>
+        <span style="color: var(--gold3);">Tab</span> — Indent
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor pane -->
+  <div class="editor-pane">
+    <div class="pane-header">
+      <span class="pane-title">Editor</span>
+      <span class="pane-sep" style="flex:1"></span>
+      <span class="pane-file" id="filename">hello.jovas</span>
+    </div>
+    <div class="editor-wrapper">
+      <div class="line-numbers" id="lineNumbers"></div>
+      <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+    </div>
+  </div>
+
+  <!-- Output pane -->
+  <div class="output-pane">
+    <div class="output-tabs">
+      <button class="output-tab active" onclick="switchTab('output', this)">Output</button>
+      <button class="output-tab" onclick="switchTab('ast', this)">AST</button>
+      <button class="output-tab" onclick="switchTab('tokens', this)">Tokens</button>
+    </div>
+    <div class="output-body" id="output">
+      <span class="out-line out-sys">// Jovas Playground v1.0.0</span>
+      <span class="out-line out-sys">// Select an example or write your own code.</span>
+      <span class="out-line out-sys">// Press Run or Ctrl+Enter to execute.</span>
+      <span class="out-line"> </span>
+      <span class="out-line out-sys blink">█</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <div class="status-item">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Ready</span>
+  </div>
+  <div class="status-item">Jovas v1.0.0</div>
+  <div class="status-item" id="lineCol">Ln 1, Col 1</div>
+  <div class="status-item" style="margin-left: auto;" id="execTime"></div>
+</div>
+
+<script>
+// ── Example Programs ──
+const EXAMPLES = {
+  hello: {
+    name: "hello.jovas",
+    code: `// Hello World in Jovas
+const LANG = "Jovas"
+let name   = "World"
+
+fn greet(name)
+    return "Hello, \${name}! Welcome to \${LANG}."
+
+print(greet(name))
+print(greet("Dustin"))
+
+let nums = [1, 2, 3, 4, 5]
+let total = 0
+for n in nums
+    total = total + n
+
+print("Sum: \${total}")
+print("Count: \${len(nums)}")`
+  },
+
+  functions: {
+    name: "functions.jovas",
+    code: `// Functions in Jovas
+
+fn add(a, b)
+    return a + b
+
+fn factorial(n)
+    if n <= 1
+        return 1
+    return n * factorial(n - 1)
+
+fn isPrime(n)
+    if n < 2
+        return false
+    let i = 2
+    while i * i <= n
+        if n % i == 0
+            return false
+        i = i + 1
+    return true
+
+print(add(10, 25))
+print(factorial(7))
+print(isPrime(17))
+print(isPrime(18))
+
+async fn fetchUser(id)
+    let res = await http.get("https://api.jovas.dev/users/\${id}")
+    return res.body
+
+let result = fetchUser(1)
+print("Fetched: \${result}")`
+  },
+
+  classes: {
+    name: "classes.jovas",
+    code: `// Classes in Jovas
+
+class Animal
+    fn init(name, sound)
+        self.name  = name
+        self.sound = sound
+
+    fn speak()
+        return "\${self.name} says \${self.sound}!"
+
+    fn describe()
+        return "I am \${self.name}"
+
+class Dog
+    fn init(name)
+        self.name  = name
+        self.tricks = []
+
+    fn learn(trick)
+        self.tricks.push(trick)
+        return "\${self.name} learned: \${trick}"
+
+    fn showTricks()
+        return "\${self.name} knows: \${self.tricks}"
+
+let dog  = Animal("Dog", "Woof")
+let cat  = Animal("Cat", "Meow")
+let bird = Animal("Bird", "Tweet")
+
+print(dog.speak())
+print(cat.speak())
+print(bird.speak())
+
+let rex = Dog("Rex")
+print(rex.learn("sit"))
+print(rex.learn("shake"))
+print(rex.showTricks())`
+  },
+
+  database: {
+    name: "database.jovas",
+    code: `// JovasDB — Native Database
+
+let db = database.connect("playground")
+
+let col1 = { name: "id",     type: "INTEGER", pk: true }
+let col2 = { name: "name",   type: "TEXT",    nullable: false }
+let col3 = { name: "email",  type: "TEXT",    unique: true }
+let col4 = { name: "role",   type: "TEXT",    default: "user" }
+let col5 = { name: "active", type: "BOOLEAN", default: true }
+
+db.createTable("users", [col1, col2, col3, col4, col5])
+
+db.insert("users", { id: 1, name: "Alice", email: "alice@jovas.dev", role: "admin" })
+db.insert("users", { id: 2, name: "Bob",   email: "bob@jovas.dev",   role: "user" })
+db.insert("users", { id: 3, name: "Eve",   email: "eve@jovas.dev",   role: "user", active: false })
+
+let all    = db.select("users")
+let admins = db.select("users", { role: "admin" })
+let active = db.ask("find all active users")
+
+print("All users: \${len(all)}")
+print("Admins:    \${len(admins)}")
+print("Active:    \${len(active)}")
+
+db.update("users", { id: 2 }, { role: "moderator" })
+
+let tx = db.begin()
+tx.insert("users", { id: 4, name: "Dana", email: "dana@jovas.dev" })
+tx.commit()
+
+print("Total after tx: \${db.count(\"users\")}")`
+  },
+
+  auth: {
+    name: "auth.jovas",
+    code: `// Auth & JWT in Jovas
+
+// Sign a JWT token
+let token = auth.sign({ userId: 1, role: "admin" }, "my_secret")
+print("Token: \${token}")
+
+// Verify the token
+let payload = auth.verify(token, "my_secret")
+print("Valid:  \${payload.valid}")
+print("UserId: \${payload}")
+
+// Try invalid token
+try
+    let bad = auth.verify("invalid.token.here", "my_secret")
+    print("Result: \${bad}")
+catch err
+    print("Error: \${err.message}")`
+  },
+
+  security: {
+    name: "security.jovas",
+    code: `// Security Module
+
+// Password hashing
+let hashed = security.hash("mypassword123")
+print("Hash: \${hashed}")
+
+let valid   = security.verify("mypassword123", hashed)
+let invalid = security.verify("wrongpassword", hashed)
+print("Correct password: \${valid}")
+print("Wrong password:   \${invalid}")
+
+// JWT
+let token   = security.jwtSign({ userId: 1, role: "admin" }, "secret", 3600)
+let payload = security.jwtVerify(token, "secret")
+print("JWT: \${payload}")
+
+// Input validation
+let result = security.validate(
+    { email: "alex@jovas.dev", age: 25, name: "Alex" },
+    {
+        email: { required: true, type: "email" },
+        age:   { required: true, min: 18, max: 120 },
+        name:  { required: true, minLength: 2 }
+    }
+)
+print("Validation: \${result}")
+
+// Roles & permissions
+security.defineRole("admin", ["read", "write", "delete"])
+security.defineRole("user",  ["read"])
+
+let ok      = security.permit({ id: 1, role: "admin" }, "delete")
+let denied  = security.permit({ id: 2, role: "user" },  "delete")
+print("Admin can delete: \${ok}")
+print("User can delete:  \${denied}")`
+  },
+
+  ai: {
+    name: "ai.jovas",
+    code: `// AI Module — First-class AI in Jovas
+
+// Ask the AI anything
+let reply = ai.ask("What makes Jovas special?")
+print("AI: \${reply}")
+
+// Sentiment analysis
+let s1 = ai.sentiment("Jovas is an awesome and great language!")
+let s2 = ai.sentiment("This is terrible and awful")
+let s3 = ai.sentiment("Today is Tuesday")
+print("Positive: \${s1}")
+print("Negative: \${s2}")
+print("Neutral:  \${s3}")
+
+// Summarize text
+let text = "Jovas is a powerful backend language that combines the best features of all programming languages into one elegant, expressive syntax with AI built right in."
+let summary = ai.summarize(text)
+print("Summary: \${summary}")
+
+// Translate
+let fr = ai.translate("Hello, welcome to Jovas!", "fr")
+let es = ai.translate("Hello, welcome to Jovas!", "es")
+print("French:  \${fr}")
+print("Spanish: \${es}")
+
+// Classify text
+let label = ai.classify("The server crashed at midnight", ["bug", "feature", "question", "alert"])
+print("Category: \${label}")`
+  },
+
+  email: {
+    name: "email.jovas",
+    code: `// Email Module
+
+// Configure SMTP (use real credentials for actual sending)
+email.configure({ host: "smtp.gmail.com", port: 587 })
+
+// Send a basic email (logged in dev mode)
+email.send({
+    to:      "user@example.com",
+    subject: "Welcome to Jovas!",
+    body:    "Hello! Your account is ready."
+})
+
+// Use a built-in template
+let rendered = email.template("welcome", {
+    name: "Alex",
+    app:  "MyJovasApp"
+})
+print("Subject: \${rendered.subject}")
+print("Body:    \${rendered.body}")
+
+// Send from template
+email.sendTemplate("welcome", { name: "Dustin", app: "Jovas" }, "dustin@jovas.dev")
+
+// Generate OTP
+let otp = email.otp(6)
+print("OTP: \${otp}")
+
+email.sendTemplate("otp", { name: "Dustin", otp: otp }, "dustin@jovas.dev")
+
+// Queue a delayed email
+email.queue({ to: "boss@example.com", subject: "Report", body: "Weekly report attached." }, 0)
+email.flushQueue()
+
+print("History: \${len(email.history())} email(s)")`
+  },
+
+  realtime: {
+    name: "realtime.jovas",
+    code: `// Built-in Real-time
+
+// Subscribe to a channel
+realtime.sync("chat", fn(data)
+    print("Message received: \${data}")
+)
+
+// Listen for events
+realtime.on("userJoined", fn(user)
+    print("User joined: \${user}")
+)
+
+// Presence — join a room
+realtime.join("chat", "user-001")
+realtime.join("chat", "user-002")
+realtime.join("chat", "user-003")
+
+let online = realtime.presence("chat")
+print("Online: \${len(online)} users")
+
+// Broadcast a message
+realtime.broadcast("chat", { from: "Alex", text: "Hello Jovas!" })
+
+// Emit an event
+realtime.emit("userJoined", { name: "Diana", ts: time.now() })
+
+// One user leaves
+realtime.leave("chat", "user-002")
+let after = realtime.presence("chat")
+print("After leave: \${len(after)} users")`
+  },
+
+  deploy: {
+    name: "deploy.jovas",
+    code: `// One-line Deployment
+
+// Deploy to cloud
+let d1 = deploy.to("cloud", { region: "us-east-1", scale: "auto" })
+print("Deployed v1: \${d1}")
+
+// Deploy to edge
+let d2 = deploy.to("edge", { region: "eu-west-1", scale: 3 })
+print("Deployed v2: \${d2}")
+
+// Check status
+let status = deploy.status()
+print("Status: \${status}")
+
+// Scale instances
+deploy.scale(5)
+
+// View logs
+deploy.logs()
+
+// Rollback to previous version
+deploy.rollback()`
+  },
+
+  server: {
+    name: "server.jovas",
+    code: `// HTTP Server in Jovas
+
+fn onHome()
+    print("GET / — serving homepage")
+
+fn onUsers()
+    let users = db.ask("find all active users")
+    print("GET /users — returning \${len(users)} users")
+
+fn onCreate()
+    print("POST /users — creating user")
+
+fn onLogin()
+    let token = auth.sign({ userId: 1 }, "secret")
+    print("POST /login — token: \${token}")
+
+fn onStart()
+    print("✅ Server is live on port 8080")
+
+let app = server.create()
+app.get("/",          onHome)
+app.get("/users",     onUsers)
+app.post("/users",    onCreate)
+app.post("/login",    onLogin)
+app.listen(8080,      onStart)
+
+log.info(["Server started", { port: 8080, routes: 4 }])`
+  },
+
+  pipeline: {
+    name: "pipeline.jovas",
+    code: `// Pipeline Operator |> in Jovas
+
+fn double(x)
+    return x * 2
+
+fn addTen(x)
+    return x + 10
+
+fn square(x)
+    return x * x
+
+// Chain functions with |>
+let result = 5 |> double |> addTen |> square
+print("5 |> double |> addTen |> square = \${result}")
+
+// Pipeline with collections
+fn filterEven(nums)
+    let out = []
+    for n in nums
+        if n % 2 == 0
+            out.push(n)
+    return out
+
+fn sumAll(nums)
+    let total = 0
+    for n in nums
+        total = total + n
+    return total
+
+let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+let evenSum = nums |> filterEven |> sumAll
+print("Sum of even numbers: \${evenSum}")`
+  },
+
+  match: {
+    name: "match.jovas",
+    code: `// Pattern Matching in Jovas
+
+fn describeStatus(status)
+    match status
+        case "active"   => return "✅ Service is running"
+        case "stopped"  => return "🔴 Service halted"
+        case "pending"  => return "⏳ Service starting up"
+        case "error"    => return "💥 Service crashed"
+        case "default"  => return "❓ Unknown status"
+
+print(describeStatus("active"))
+print(describeStatus("stopped"))
+print(describeStatus("pending"))
+print(describeStatus("unknown"))
+
+fn getDay(n)
+    match n
+        case 1 => return "Monday"
+        case 2 => return "Tuesday"
+        case 3 => return "Wednesday"
+        case 4 => return "Thursday"
+        case 5 => return "Friday"
+        case 6 => return "Saturday"
+        case 7 => return "Sunday"
+        case "default" => return "Invalid day"
+
+repeat 7
+    print(getDay(1))`
+  },
+
+  fullapp: {
+    name: "fullapp.jovas",
+    code: `// Full Jovas Application
+
+import json
+
+const APP  = "JovasDemo"
+const PORT = 8080
+
+// Setup database
+let db = database.connect("fullapp")
+let c1 = { name: "id",    type: "INTEGER", pk: true }
+let c2 = { name: "name",  type: "TEXT",    nullable: false }
+let c3 = { name: "email", type: "TEXT",    unique: true }
+let c4 = { name: "role",  type: "TEXT",    default: "user" }
+db.createTable("users", [c1, c2, c3, c4])
+
+// Seed data
+db.insert("users", { id: 1, name: "Alice", email: "alice@jovas.dev", role: "admin" })
+db.insert("users", { id: 2, name: "Bob",   email: "bob@jovas.dev",   role: "user" })
+
+// Auth
+let token = auth.sign({ userId: 1, role: "admin" }, "secret")
+print("Token: \${token}")
+
+// Security
+security.defineRole("admin", ["read", "write", "delete"])
+security.defineRole("user",  ["read"])
+
+// AI
+let mood = ai.sentiment("Jovas is amazing and powerful!")
+print("App mood: \${mood.sentiment}")
+
+// Email
+email.configure({ host: "smtp.jovas.dev", port: 587 })
+email.send({ to: "admin@jovas.dev", subject: "\${APP} started", body: "App is running!" })
+
+// Deploy
+let d = deploy.to("cloud", { region: "us-east-1", scale: "auto" })
+print("Deployed: \${d}")
+
+// Server
+fn onStart()
+    print("\${APP} running on port \${PORT}")
+
+let app = server.create()
+app.get("/users", fn()
+    print("Serving users")
+)
+app.listen(PORT, onStart)
+
+// Logging
+log.info(["\${APP} initialized", { port: PORT, db: "connected", users: db.count(\"users\") }])
+log.warn(["This is a demo playground"])
+print("\\n✅ \${APP} is fully running!")`
+  }
+};
+
+// ── Built-in Jovas Interpreter (runs entirely in browser, no API needed) ──
+
+function jovasEval(code) {
+  // Tiny Jovas interpreter — handles print, let, const, if, for, while, fn, class
+  const output = [];
+  const env    = {};
+  const fns    = {};
+
+  // Built-in modules
+  const modules = {
+    log:      { info: (a) => out('info', `[Log] ℹ️  ${fmt(a[0])}`), warn: (a) => out('warn', `[Log] ⚠️  ${fmt(a[0])}`), error: (a) => out('err', `[Log] ❌ ${fmt(a[0])}`) },
+    math:     { PI: Math.PI, E: Math.E, sqrt: (a) => Math.sqrt(a[0]), floor: (a) => Math.floor(a[0]), ceil: (a) => Math.ceil(a[0]), abs: (a) => Math.abs(a[0]), pow: (a) => Math.pow(a[0],a[1]) },
+    json:     { parse: (a) => { try{return JSON.parse(a[0])}catch(e){return null} }, stringify: (a) => JSON.stringify(a[0], null, 2) },
+    time:     { now: () => Date.now(), today: () => new Date().toISOString().split('T')[0], sleep: () => null },
+    crypto:   { hash: (a) => 'sha256:' + btoa(a[0]).slice(0,16), md5: (a) => 'md5:' + btoa(a[0]).slice(0,8) },
+    auth:     { sign: (a) => { out('db','  [Auth] 🔑 JWT signed'); return 'jvt.' + btoa(JSON.stringify(a[0])).slice(0,32); }, verify: (a) => { out('db','  [Auth] ✅ JWT verified'); return {valid:true, userId:1}; } },
+    security: {
+      hash:        (a) => { out('sec','  [Security] 🔒 Password hashed'); return '$jvt$1$' + btoa(a[0]).slice(0,24); },
+      verify:      (a) => { const ok = a[1].includes(btoa(a[0]).slice(0,8)); out('sec', ok ? '  [Security] ✅ Password valid' : '  [Security] ❌ Password invalid'); return ok; },
+      jwtSign:     (a) => { out('sec','  [Security] 🔑 JWT signed'); return 'jvt.' + btoa(JSON.stringify(a[0])).slice(0,32); },
+      jwtVerify:   (a) => { out('sec','  [Security] ✅ JWT verified'); return {valid:true, payload:a[0]}; },
+      validate:    (a) => { out('sec','  [Security] ✅ Validation passed'); return {valid:true, errors:[]}; },
+      defineRole:  (a) => { out('sec',`  [Security] 👤 Role '${a[0]}' defined`); return true; },
+      permit:      (a) => { out('sec',`  [Security] ✅ Permitted: ${a[1]}`); return true; },
+      cors:        (a) => { out('sec','  [Security] 🌐 CORS headers set'); return {'Access-Control-Allow-Origin':'*'}; },
+      generateSecret: (a) => btoa(Math.random().toString()).slice(0, a?a[0]:32),
+      sanitize:    (a) => String(a[0]).replace(/</g,'&lt;').replace(/>/g,'&gt;'),
+    },
+    email: {
+      configure:    (a) => { out('mail',`  [Email] ✅ Configured: ${a[0]?.host||'smtp'}`); return true; },
+      send:         (a) => { out('mail',`  [Email] 📧 To: ${a[0]?.to} | Subject: "${a[0]?.subject}"`); return {status:'logged'}; },
+      template:     (a) => { return {subject:`[${a[0]}] template`, body:`Hi ${a[1]?.name||'User'}, welcome to ${a[1]?.app||'App'}!`, template:a[0]}; },
+      sendTemplate: (a) => { out('mail',`  [Email] 📧 Template '${a[0]}' sent`); return {status:'logged'}; },
+      otp:          (a) => { const o=String(Math.floor(Math.random()*900000+100000)); out('mail',`  [Email] 🔑 OTP: ${o}`); return o; },
+      queue:        (a) => { out('mail','  [Email] ⏳ Queued'); return true; },
+      flushQueue:   ()  => { out('mail','  [Email] 📤 Queue flushed'); return 0; },
+      history:      ()  => [],
+    },
+    ai: {
+      ask:       (a) => { out('ai',`  [AI] 💬 "${String(a[0]).slice(0,40)}..."`); return `AI response to: ${String(a[0]).slice(0,30)}`; },
+      sentiment: (a) => { const s=String(a[0]).toLowerCase(); const pos=s.match(/good|great|awesome|amazing|love|excellent/); out('ai',`  [AI] 🧠 Sentiment: ${pos?'positive':'neutral'}`); return {sentiment:pos?'positive':'neutral',score:pos?2:0}; },
+      summarize: (a) => { const w=String(a[0]).split(' '); return w.slice(0,8).join(' ')+(w.length>8?'...':''); },
+      translate: (a) => { out('ai',`  [AI] 🌍 Translated to ${a[1]||'es'}`); return `[${(a[1]||'ES').toUpperCase()}] ${a[0]}`; },
+      classify:  (a) => { out('ai',`  [AI] 🏷️  Classified`); return {label:(a[1]||['general'])[0], confidence:0.9}; },
+    },
+    http: {
+      get:   (a) => { out('db',`  [HTTP] GET ${a[0]} → 200`); return {status:200,ok:true,body:{url:a[0],data:'mock response'}}; },
+      post:  (a) => { out('db',`  [HTTP] POST ${a[0]} → 201`); return {status:201,ok:true,body:{created:true}}; },
+      put:   (a) => { return {status:200,ok:true,body:{updated:true}}; },
+      delete:(a) => { return {status:200,ok:true,body:{deleted:true}}; },
+    },
+    database: {
+      connect: (a) => {
+        const name = a[0]||'db';
+        out('db', `  [JovasDB] Connected: '${name}'`);
+        const tables = {};
+        return {
+          createTable: (a) => { tables[a[0]]={cols:a[1]||[],rows:[],nid:1}; out('db',`  [JovasDB] ✅ Table '${a[0]}' created`); return true; },
+          insert:  (a) => { if(!tables[a[0]])tables[a[0]]={cols:[],rows:[],nid:1}; const r={...a[1],_id:tables[a[0]].nid++}; tables[a[0]].rows.push(r); out('db',`  [JovasDB] ✅ Inserted into '${a[0]}' (id=${r._id})`); return r; },
+          select:  (a) => { const rows=(tables[a[0]]?.rows||[]); out('db',`  [JovasDB] SELECT '${a[0]}' → ${rows.length} row(s)`); return rows; },
+          update:  (a) => { out('db',`  [JovasDB] UPDATE '${a[0]}' → 1 row(s)`); return 1; },
+          delete:  (a) => { out('db',`  [JovasDB] DELETE '${a[0]}' → 1 row(s)`); return 1; },
+          count:   (a) => { const n=(tables[a[0]]?.rows||[]).length; out('db',`  [JovasDB] COUNT '${a[0]}' → ${n}`); return n; },
+          findOne: (a) => { return (tables[a[0]]?.rows||[])[0]||null; },
+          ask:     (a) => { out('db',`  [JovasDB] NLQ: "${a[0]}" → ${Object.values(tables)[0]?.rows?.length||0} row(s)`); return Object.values(tables)[0]?.rows||[]; },
+          begin:   ()  => { out('db','  [JovasDB] TX started'); return { insert:(a)=>tables[a[0]]?.rows.push({...a[1]}), commit:()=>{out('db','  [JovasDB] TX ✅ Committed');return true;}, rollback:()=>{out('db','  [JovasDB] TX ⏪ Rolled back');return true;} }; },
+          describe:(a) => { out('db',`  Table: ${a?a[0]:'all'} | ${Object.keys(tables).join(', ')}`); return true; },
+        };
+      }
+    },
+    realtime: {
+      sync:      (a) => { out('ai',`  [Realtime] 📡 Subscribed: ${a[0]}`); return true; },
+      broadcast: (a) => { out('ai',`  [Realtime] 📢 Broadcast → ${a[0]}`); return true; },
+      on:        (a) => { out('ai',`  [Realtime] 👂 Listening: ${a[0]}`); return true; },
+      emit:      (a) => { out('ai',`  [Realtime] ⚡ Emit: ${a[0]}`); return true; },
+      join:      (a) => { out('ai',`  [Realtime] 👋 ${a[1]||'user'} joined ${a[0]}`); return true; },
+      leave:     (a) => { out('ai',`  [Realtime] 👋 ${a[1]||'user'} left ${a[0]}`); return true; },
+      presence:  (a) => { return ['user-1','user-2']; },
+    },
+    deploy: {
+      to:       (a) => { out('warn',`  [Deploy] 🚀 Deployed to ${a[0]} (${a[1]?.region||'us-east-1'})`); return {url:`https://jovas-app.${a[0]}.io`,version:1}; },
+      status:   ()  => { out('warn','  [Deploy] ✅ Running'); return {status:'running'}; },
+      scale:    (a) => { out('warn',`  [Deploy] ⚡ Scaled to ${a[0]} instances`); return true; },
+      rollback: ()  => { out('warn','  [Deploy] ⏪ Rolled back'); return true; },
+      logs:     ()  => { out('warn','  [Deploy] 📋 [2026-04-06] Server started'); return []; },
+    },
+    server: {
+      create: () => {
+        out('db','  [Server] 🌐 Server created');
+        return {
+          get:    (a) => { out('db',`  [Server] Route: GET ${a[0]}`); return true; },
+          post:   (a) => { out('db',`  [Server] Route: POST ${a[0]}`); return true; },
+          listen: (a) => { out('db',`  [Server] 🚀 Listening on port ${a[0]}`); if(typeof a[1]==='function') try{a[1]();}catch(e){}; return true; },
+        };
+      }
+    },
+    fmt:   { format: (a) => { out('info','  [Formatter] ✅ Formatted'); return a[0]; }, formatFile: () => true },
+    lint:  { check:  (a) => { out('info','  [Linter] ✅ No issues'); return {issues:[],errors:0,warnings:0,clean:true}; } },
+    debug: {
+      breakpoint: (a) => { out('warn',`  [Debug] 🔴 Breakpoint: ${a[0]}:${a[1]||0}`); return true; },
+      watch:      (a) => { out('warn',`  [Debug] 👁 Watching: '${a[0]}'`); return true; },
+      log:        (a) => { out('warn',`  [Debug] [${new Date().toISOString().slice(11,23)}] ${a[0]}: ${fmt(a[1])}`); return a[1]; },
+      inspect:    (a) => { out('warn',`  [Debug] 🔍 ${JSON.stringify(a[0]).slice(0,60)}`); return a[0]; },
+      time:       (a) => { out('warn',`  [Debug] ⏱ ${a[0]}`); return 0; },
+      assert:     (a) => { if(!a[0]) throw new Error(`Assert failed: ${a[1]||''}`); out('warn','  [Debug] ✅ Assert passed'); return true; },
+      trace:      (a) => { out('warn',`  [Debug] → ${a[0]}`); return true; },
+      stackTrace: ()  => { out('warn','  [Debug] Call stack: (empty)'); return []; },
+    },
+    rateLimit: { check: (a) => ({allowed:true,remaining:99}), reset: ()=>true },
+    config:    { load: ()=>true, get: (a)=>process?.env?.[a[0]]||a[1]||null, require: (a)=>a[1]||'' },
+    env:       { get: (a)=>a[1]||null, set: ()=>true },
+    file:      { read: (a)=>`[file content of ${a[0]}]`, write: ()=>true, exists: ()=>true, delete: ()=>true, list: ()=>[] },
+    socket:    { connect: (a) => { out('db',`  [WS] Connected to ${a[0]}`); return {send:(b)=>true,on:()=>true,close:()=>true}; } },
+  };
+
+  function fmt(v) {
+    if (v === null || v === undefined) return 'null';
+    if (v === true) return 'true';
+    if (v === false) return 'false';
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  }
+
+  function out(type, text) { output.push({type, text}); }
+
+  function interp(node, scope) {
+    if (!node) return null;
+    switch(node.type) {
+      case 'Program':
+        let last = null;
+        for (const s of node.body) last = interp(s, scope);
+        return last;
+      case 'VarDecl': {
+        const val = interp(node.value, scope);
+        scope[node.name] = val;
+        return val;
+      }
+      case 'Assign': {
+        const val = interp(node.value, scope);
+        scope[node.name] = val;
+        return val;
+      }
+      case 'Print': {
+        const val = interp(node.value, scope);
+        out('info', fmt(val));
+        return val;
+      }
+      case 'Number': return node.value;
+      case 'String': {
+        // Handle ${expr} interpolation
+        return node.value.replace(/\$\{([^}]+)\}/g, (_, expr) => {
+          try { return fmt(evalExpr(expr.trim(), scope)); } catch(e) { return '${'+expr+'}'; }
+        });
+      }
+      case 'Bool':   return node.value;
+      case 'Null':   return null;
+      case 'Ident':  return resolve(node.name, scope);
+      case 'Array':  return node.elements.map(e => interp(e, scope));
+      case 'Object': {
+        const obj = {};
+        for (const [k,v] of node.pairs) obj[k] = interp(v, scope);
+        return obj;
+      }
+      case 'BinOp': {
+        const l = interp(node.left, scope);
+        const r = interp(node.right, scope);
+        switch(node.op) {
+          case '+': return typeof l==='string'||typeof r==='string' ? String(l)+String(r) : l+r;
+          case '-': return l-r; case '*': return l*r; case '/': return l/r;
+          case '%': return l%r; case '==': return l==r; case '!=': return l!=r;
+          case '<': return l<r; case '>': return l>r; case '<=': return l<=r; case '>=': return l>=r;
+          case '&&': return l&&r; case '||': return l||r;
+        }
+        break;
+      }
+      case 'Unary': {
+        const v = interp(node.operand, scope);
+        if (node.op === '!') return !v;
+        if (node.op === '-') return -v;
+        break;
+      }
+      case 'If': {
+        if (interp(node.condition, scope)) {
+          for (const s of node.then) interp(s, scope);
+        } else if (node.else) {
+          for (const s of node.else) interp(s, scope);
+        }
+        break;
+      }
+      case 'While': {
+        let guard = 0;
+        while (interp(node.condition, scope) && guard++ < 1000) {
+          for (const s of node.body) { const r = interp(s, scope); if (r && r.__return__) return r; }
+        }
+        break;
+      }
+      case 'For': {
+        const arr = interp(node.iterable, scope);
+        if (!Array.isArray(arr)) break;
+        for (const item of arr) {
+          const inner = Object.create(scope);
+          inner[node.var] = item;
+          for (const s of node.body) { const r = interp(s, scope); if (r && r.__return__) return r; }
+          scope[node.var] = item;
+        }
+        break;
+      }
+      case 'Repeat': {
+        const n = interp(node.count, scope);
+        for (let i = 0; i < n; i++) {
+          for (const s of node.body) interp(s, scope);
+        }
+        break;
+      }
+      case 'FnDecl':
+        scope[node.name] = { __fn__: true, params: node.params, body: node.body, closure: scope };
+        return null;
+      case 'Call': {
+        const fn = interp(node.callee, scope);
+        const args = node.args.map(a => interp(a, scope));
+        return callFn(fn, args, scope, node);
+      }
+      case 'Member': {
+        const obj = interp(node.object, scope);
+        if (obj === null || obj === undefined) return null;
+        if (typeof obj === 'object' && !obj.__fn__) {
+          if (node.prop in obj) return obj[node.prop];
+          // Check modules
+          if (modules[node.prop]) return modules[node.prop];
+        }
+        return obj?.[node.prop] ?? null;
+      }
+      case 'Return':
+        return { __return__: true, value: interp(node.value, scope) };
+      case 'ExprStmt':
+        return interp(node.expr, scope);
+      case 'Class':
+        scope[node.name] = { __class__: true, name: node.name, methods: node.methods, closure: scope };
+        return null;
+    }
+    return null;
+  }
+
+  function resolve(name, scope) {
+    if (name in scope) return scope[name];
+    if (name === 'true') return true;
+    if (name === 'false') return false;
+    if (name === 'null') return null;
+    if (name === 'len') return (a) => (a[0]?.length ?? 0);
+    if (name === 'print') return (a) => { out('info', a.map(fmt).join(' ')); return null; };
+    if (name === 'str') return (a) => String(a[0]);
+    if (name === 'int') return (a) => parseInt(a[0]);
+    if (name === 'float') return (a) => parseFloat(a[0]);
+    if (name === 'bool') return (a) => !!a[0];
+    if (name === 'min') return (a) => Array.isArray(a[0]) ? Math.min(...a[0]) : Math.min(...a);
+    if (name === 'max') return (a) => Array.isArray(a[0]) ? Math.max(...a[0]) : Math.max(...a);
+    if (name === 'abs') return (a) => Math.abs(a[0]);
+    if (name === 'range') return (a) => Array.from({length:a[1]-a[0]},(_,i)=>a[0]+i);
+    if (name === 'sorted') return (a) => [...(a[0]||[])].sort();
+    if (name in modules) return modules[name];
+    return undefined;
+  }
+
+  function callFn(fn, args, scope, node) {
+    if (fn === null || fn === undefined) {
+      const calleeName = node?.callee?.name || node?.callee?.prop || '?';
+      out('err', `  [Error] '${calleeName}' is not a function`);
+      return null;
+    }
+    // Native JS function (module method)
+    if (typeof fn === 'function') return fn(args);
+    // Module object with method
+    if (typeof fn === 'object' && fn !== null) {
+      // Class instantiation
+      if (fn.__class__) {
+        const inst = { __inst__: true, __class__: fn.name };
+        const self = Object.create(scope);
+        self['self'] = inst;
+        for (const m of fn.methods || []) self[m.name] = { __fn__: true, params: m.params, body: m.body, closure: self, instance: inst };
+        if (self['init']) callFn(self['init'], args, self);
+        // Proxy property access
+        return new Proxy(inst, {
+          get(t, p) { if (p in t) return t[p]; if (p in self) return self[p]; return undefined; },
+          set(t, p, v) { t[p] = v; return true; }
+        });
+      }
+      // Jovas function
+      if (fn.__fn__) {
+        const inner = Object.create(fn.closure || scope);
+        (fn.params || []).forEach((p, i) => { inner[typeof p==='string'?p:p[0]] = args[i] ?? null; });
+        if (fn.instance) inner['self'] = fn.instance;
+        let ret = null;
+        for (const s of fn.body || []) {
+          const r = interp(s, inner);
+          if (r && r.__return__) { ret = r.value; break; }
+        }
+        return ret;
+      }
+    }
+    out('err', `  [Error] Cannot call ${typeof fn}`);
+    return null;
+  }
+
+  function evalExpr(expr, scope) {
+    // Simple expression evaluator for string interpolation
+    try {
+      const keys = Object.keys(scope).filter(k => /^[a-zA-Z_]/.test(k));
+      const vals = keys.map(k => scope[k]);
+      return new Function(...keys, `return (${expr})`)(...vals);
+    } catch(e) {
+      return resolve(expr, scope) ?? expr;
+    }
+  }
+
+  // ── Mini Jovas Parser ──────────────────────
+  function parse(src) {
+    const lines = src.split('\n');
+    const body   = [];
+    let   i      = 0;
+
+    function peek() { return lines[i] || ''; }
+    function next() { return lines[i++] || ''; }
+    function indentOf(l) { return l.match(/^(\s*)/)[1].length; }
+    function baseIndent() { return indentOf(lines[i] || ''); }
+
+    function parseBlock(parentIndent) {
+      const stmts = [];
+      while (i < lines.length) {
+        const line = lines[i];
+        if (!line.trim()) { i++; continue; }
+        const ind = indentOf(line);
+        if (ind <= parentIndent) break;
+        stmts.push(parseStmt());
+      }
+      return stmts;
+    }
+
+    function parseStmt() {
+      const line  = next().trim();
+      const ind   = indentOf(lines[i-1]);
+      if (!line || line.startsWith('//') || line.startsWith('#')) return null;
+
+      // let / const
+      if (/^(let|const)\s+(\w+)\s*=\s*(.+)$/.test(line)) {
+        const m = line.match(/^(let|const)\s+(\w+)\s*=\s*(.+)$/);
+        return { type:'VarDecl', name:m[2], value:parseExprStr(m[3]), constant:m[1]==='const' };
+      }
+
+      // fn / async fn / expose fn
+      if (/^(async\s+|expose\s+)?fn\s+(\w+)\s*\(([^)]*)\)/.test(line)) {
+        const m = line.match(/^(?:async\s+|expose\s+)?fn\s+(\w+)\s*\(([^)]*)\)/);
+        const params = m[2].split(',').map(p=>p.trim()).filter(Boolean);
+        const body   = parseBlock(ind);
+        return { type:'FnDecl', name:m[1], params, body };
+      }
+
+      // print(...)
+      if (/^print\s*\((.*)\)$/.test(line)) {
+        const m = line.match(/^print\s*\((.*)\)$/);
+        return { type:'Print', value:parseExprStr(m[1]) };
+      }
+
+      // if
+      if (/^if\s+(.+)$/.test(line)) {
+        const m    = line.match(/^if\s+(.+)$/);
+        const then = parseBlock(ind);
+        let els    = [];
+        if (i < lines.length && lines[i].trim().startsWith('else')) {
+          i++;
+          els = parseBlock(ind);
+        }
+        return { type:'If', condition:parseExprStr(m[1]), then, else:els };
+      }
+
+      // for x in y
+      if (/^for\s+(\w+)\s+in\s+(.+)$/.test(line)) {
+        const m    = line.match(/^for\s+(\w+)\s+in\s+(.+)$/);
+        const body = parseBlock(ind);
+        return { type:'For', var:m[1], iterable:parseExprStr(m[2]), body };
+      }
+
+      // while
+      if (/^while\s+(.+)$/.test(line)) {
+        const m    = line.match(/^while\s+(.+)$/);
+        const body = parseBlock(ind);
+        return { type:'While', condition:parseExprStr(m[1]), body };
+      }
+
+      // repeat N
+      if (/^repeat\s+(.+)$/.test(line)) {
+        const m    = line.match(/^repeat\s+(.+)$/);
+        const body = parseBlock(ind);
+        return { type:'Repeat', count:parseExprStr(m[1]), body };
+      }
+
+      // return
+      if (/^return\b/.test(line)) {
+        const m = line.match(/^return\s*(.*)/);
+        return { type:'Return', value: m[1] ? parseExprStr(m[1]) : {type:'Null'} };
+      }
+
+      // class
+      if (/^class\s+(\w+)/.test(line)) {
+        const m       = line.match(/^class\s+(\w+)/);
+        const methods = [];
+        const block   = parseBlock(ind);
+        for (const s of block) { if (s && s.type === 'FnDecl') methods.push(s); }
+        return { type:'Class', name:m[1], methods };
+      }
+
+      // assignment: x = expr  or  x.prop = expr
+      if (/^[\w.]+\s*=\s*[^=]/.test(line) && !/^(let|const|if|for|while|fn|class|return)/.test(line)) {
+        const m = line.match(/^([\w.]+)\s*=\s*(.+)$/);
+        if (m) return { type:'Assign', name:m[1], value:parseExprStr(m[2]) };
+      }
+
+      // expression statement (function calls, etc.)
+      return { type:'ExprStmt', expr:parseExprStr(line) };
+    }
+
+    function parseExprStr(s) {
+      s = s.trim();
+      if (!s) return {type:'Null'};
+
+      // null / true / false
+      if (s === 'null')  return {type:'Null'};
+      if (s === 'true')  return {type:'Bool', value:true};
+      if (s === 'false') return {type:'Bool', value:false};
+
+      // Number
+      if (/^-?\d+(\.\d+)?$/.test(s)) return {type:'Number', value:parseFloat(s)};
+
+      // String literal
+      if (/^["']/.test(s)) {
+        const q = s[0];
+        const end = s.lastIndexOf(q);
+        const str = s.slice(1, end);
+        return {type:'String', value:str};
+      }
+
+      // Array literal
+      if (s.startsWith('[')) {
+        try {
+          const inner = s.slice(1, s.lastIndexOf(']'));
+          const elems = splitArgs(inner).map(e => parseExprStr(e.trim()));
+          return {type:'Array', elements:elems};
+        } catch(e) {}
+      }
+
+      // Object literal
+      if (s.startsWith('{') && s.includes(':')) {
+        try {
+          const inner = s.slice(1, s.lastIndexOf('}'));
+          const pairs = [];
+          for (const part of splitArgs(inner)) {
+            const ci = part.indexOf(':');
+            if (ci < 0) continue;
+            const k = part.slice(0,ci).trim().replace(/["']/g,'');
+            const v = parseExprStr(part.slice(ci+1).trim());
+            pairs.push([k, v]);
+          }
+          return {type:'Object', pairs};
+        } catch(e) {}
+      }
+
+      // Parenthesised expression
+      if (s.startsWith('(') && s.endsWith(')')) return parseExprStr(s.slice(1,-1));
+
+      // Binary operators (simple left-to-right, handles most cases)
+      for (const op of ['||','&&','==','!=','<=','>=','<','>','+','-','*','/','%']) {
+        const idx = findOp(s, op);
+        if (idx > 0) {
+          const left  = parseExprStr(s.slice(0,idx).trimEnd());
+          const right = parseExprStr(s.slice(idx+op.length).trimStart());
+          return {type:'BinOp', op, left, right};
+        }
+      }
+
+      // Unary !
+      if (s.startsWith('!')) return {type:'Unary', op:'!', operand:parseExprStr(s.slice(1))};
+
+      // Function call or member access
+      const callMatch = s.match(/^(.+?)\((.*)\)$/);
+      if (callMatch) {
+        const callee = parseExprStr(callMatch[1]);
+        const rawArgs = callMatch[2].trim();
+        const args = rawArgs ? splitArgs(rawArgs).map(a=>parseExprStr(a.trim())) : [];
+        return {type:'Call', callee, args};
+      }
+
+      // Member access a.b.c
+      if (s.includes('.') && !/^["']/.test(s)) {
+        const parts = s.split('.');
+        let node = {type:'Ident', name:parts[0]};
+        for (let p = 1; p < parts.length; p++) {
+          node = {type:'Member', object:node, prop:parts[p]};
+        }
+        return node;
+      }
+
+      // Identifier
+      if (/^[a-zA-Z_$][\w$]*$/.test(s)) return {type:'Ident', name:s};
+
+      return {type:'Null'};
+    }
+
+    function findOp(s, op) {
+      let depth = 0;
+      for (let i = s.length - op.length; i >= 0; i--) {
+        const c = s[i];
+        if (c===')' || c===']' || c==='}') depth++;
+        else if (c==='(' || c==='[' || c==='{') depth--;
+        else if (depth===0 && s.slice(i,i+op.length)===op) {
+          // Don't match if it's part of == != <= >=
+          if (op==='-' && i===0) continue;
+          if (op==='<' && (s[i+1]==='='||s[i-1]==='<')) continue;
+          if (op==='>' && (s[i+1]==='='||s[i-1]==='=')) continue;
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    function splitArgs(s) {
+      const parts = []; let cur = '', depth = 0;
+      for (let i = 0; i < s.length; i++) {
+        const c = s[i];
+        if (c==='('||c==='['||c==='{') { depth++; cur+=c; }
+        else if (c===')'||c===']'||c==='}') { depth--; cur+=c; }
+        else if (c===',' && depth===0) { parts.push(cur.trim()); cur=''; }
+        else cur+=c;
+      }
+      if (cur.trim()) parts.push(cur.trim());
+      return parts;
+    }
+
+    while (i < lines.length) {
+      const line = lines[i];
+      if (!line.trim()) { i++; continue; }
+      const s = parseStmt();
+      if (s) body.push(s);
+    }
+    return { type:'Program', body };
+  }
+
+  // ── Run ──────────────────────────────────
+  try {
+    const ast   = parse(code);
+    const scope = {};
+    interp(ast, scope);
+  } catch(e) {
+    out('err', `[Error] ${e.message}`);
+  }
+
+  return output;
+}
+
+async function runCode() {
+  const code = document.getElementById('editor').value;
+  if (!code.trim()) return;
+
+  setStatus('running');
+  const out = document.getElementById('output');
+  out.innerHTML = '';
+  addLine('sys', `// Running ${document.getElementById('filename').textContent}...`);
+  addLine('sys', '');
+
+  const start = Date.now();
+
+  // Run entirely in the browser — no API needed
+  const results = jovasEval(code);
+
+  results.forEach(({type, text}) => {
+    if (!text && text !== 0) { addLine('', ''); return; }
+    addLine(type || 'info', text);
+  });
+
+  const elapsed = Date.now() - start;
+  addLine('ok',  `[Done] ✅ Executed in ${elapsed}ms`);
+  document.getElementById('execTime').textContent = `${elapsed}ms`;
+  setStatus('ready');
+}
+
+function addLine(type, text) {
+  const out = document.getElementById('output');
+  const span = document.createElement('span');
+  span.className = `out-line out-${type || 'info'}`;
+  span.textContent = text;
+  out.appendChild(span);
+  out.scrollTop = out.scrollHeight;
+}
+
+function clearOutput() {
+  const out = document.getElementById('output');
+  out.innerHTML = '<span class="out-line out-sys blink">█</span>';
+  document.getElementById('execTime').textContent = '';
+}
+
+function setStatus(state) {
+  const dot  = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  if (state === 'running') {
+    dot.className = 'status-dot running';
+    text.textContent = 'Running...';
+  } else {
+    dot.className = 'status-dot';
+    text.textContent = 'Ready';
+  }
+}
+
+// ── Load Examples ──
+function loadExample(name) {
+  const ex = EXAMPLES[name];
+  if (!ex) return;
+  document.getElementById('editor').value = ex.code;
+  document.getElementById('filename').textContent = ex.name;
+  document.querySelectorAll('.example-item').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('onclick').includes(`'${name}'`));
+  });
+  updateLineNumbers();
+  clearOutput();
+}
+
+// ── Share ──
+function shareCode() {
+  const code = document.getElementById('editor').value;
+  const encoded = btoa(encodeURIComponent(code));
+  const url = window.location.href.split('?')[0] + '?code=' + encoded;
+  navigator.clipboard.writeText(url).then(() => {
+    document.querySelector('.btn[onclick="shareCode()"]').textContent = 'Copied!';
+    setTimeout(() => {
+      document.querySelector('.btn[onclick="shareCode()"]').textContent = 'Share';
+    }, 2000);
+  });
+}
+
+// ── Line numbers ──
+function updateLineNumbers() {
+  const editor = document.getElementById('editor');
+  const lines  = editor.value.split('\n').length;
+  const ln     = document.getElementById('lineNumbers');
+  ln.innerHTML = Array.from({length: lines}, (_, i) =>
+    `<span>${i + 1}</span>`
+  ).join('');
+}
+
+// ── Tab switching ──
+function switchTab(tab, btn) {
+  document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Editor events ──
+const editor = document.getElementById('editor');
+
+editor.addEventListener('input', updateLineNumbers);
+editor.addEventListener('scroll', () => {
+  document.getElementById('lineNumbers').scrollTop = editor.scrollTop;
+});
+editor.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); runCode(); }
+  if (e.key === 'l' && e.ctrlKey) { e.preventDefault(); clearOutput(); }
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(start);
+    editor.selectionStart = editor.selectionEnd = start + 4;
+    updateLineNumbers();
+  }
+});
+editor.addEventListener('keyup', e => {
+  const lines = editor.value.substring(0, editor.selectionStart).split('\n');
+  document.getElementById('lineCol').textContent =
+    `Ln ${lines.length}, Col ${lines[lines.length-1].length + 1}`;
+});
+
+// ── Load from URL ──
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('code')) {
+  try {
+    editor.value = decodeURIComponent(atob(urlParams.get('code')));
+    updateLineNumbers();
+  } catch(e) {}
+} else {
+  loadExample('hello');
+}
+</script>
+</body>
+</html>

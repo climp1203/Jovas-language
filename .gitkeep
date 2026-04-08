@@ -1,0 +1,3 @@
+# This file keeps the jovasdb_data/ folder in git.
+# Actual .jdb database files are ignored by .gitignore.
+# JovasDB will create your database files here at runtime.
