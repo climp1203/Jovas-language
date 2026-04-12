@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jovas Playground</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold:#FFD700; --gold2:#E6B800; --gold3:#B8860B;
+  --black:#000;   --dark:#0a0a0a;  --dark2:#0f0f0f;
+  --card:#111;    --border:rgba(255,215,0,0.12);
+  --text:#e8e8e8; --muted:#555;
+  --green:#4ADE80; --red:#F87171;
+  --mono:'JetBrains Mono',monospace;
+  --ui:'Syne',sans-serif;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;background:#000 !important;color:#e8e8e8 !important;font-family:'Syne',sans-serif;color-scheme:dark;}
+
+/* ── TOP BAR ── */
+.topbar{
+  height:44px;background:var(--dark2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 1rem;gap:0.75rem;flex-shrink:0;
+}
+.topbar-logo{font-family:var(--ui);font-weight:800;font-size:1.1rem;color:var(--gold);text-decoration:none;letter-spacing:0.05em;}
+.topbar-title{font-family:var(--mono);font-size:0.65rem;color:var(--muted);letter-spacing:0.15em;text-transform:uppercase;}
+.topbar-right{margin-left:auto;display:flex;gap:0.5rem;align-items:center;}
+.btn{padding:0.35rem 0.9rem;font-family:var(--mono);font-size:0.68rem;font-weight:500;letter-spacing:0.08em;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;transition:all 0.15s;}
+.btn:hover{border-color:var(--gold3);color:var(--gold);}
+.btn-run{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700;}
+.btn-run:hover{background:var(--gold2);}
+
+/* ── MOBILE TABS (hidden on desktop) ── */
+.mobile-tabs{
+  display:none;background:var(--dark2);border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.mtab{
+  flex:1;padding:0.55rem 0;font-family:var(--mono);font-size:0.6rem;
+  letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);
+  border:none;background:transparent;cursor:pointer;
+  border-bottom:2px solid transparent;transition:all 0.15s;
+}
+.mtab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* ── MAIN GRID ── */
+.main{
+  height:calc(100vh - 44px);
+  display:grid;
+  grid-template-columns:220px 1fr 1fr;
+  overflow:hidden;
+}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  background:var(--dark2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.sidebar-hd{
+  padding:0.65rem 1rem;font-family:var(--mono);font-size:0.58rem;
+  letter-spacing:0.2em;text-transform:uppercase;color:var(--gold3);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.ex-list{overflow-y:auto;flex:1;}
+.ex-item{
+  padding:0.55rem 1rem;font-family:var(--mono);font-size:0.7rem;color:var(--muted);
+  cursor:pointer;border-left:2px solid transparent;display:flex;align-items:center;gap:0.5rem;
+  transition:all 0.15s;
+}
+.ex-item:hover{color:var(--text);background:rgba(255,215,0,0.04);border-left-color:var(--border);}
+.ex-item.active{color:var(--gold);border-left-color:var(--gold);background:rgba(255,215,0,0.06);}
+.ex-icon{font-size:0.85rem;}
+.sidebar-foot{padding:0.75rem 1rem;border-top:1px solid var(--border);flex-shrink:0;}
+.kbd{font-family:var(--mono);font-size:0.58rem;color:var(--muted);line-height:1.9;}
+.kbd b{color:var(--gold3);}
+
+/* ── EDITOR PANE ── */
+.editor-pane{display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden;}
+.pane-hd{
+  height:34px;background:var(--dark2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 1rem;gap:0.75rem;flex-shrink:0;
+}
+.pane-title{font-family:var(--mono);font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);}
+.pane-file{font-family:var(--mono);font-size:0.68rem;color:var(--gold3);}
+.editor-wrap{flex:1;display:flex;overflow:hidden;}
+.line-nums{
+  width:42px;padding:1rem 0;text-align:right;font-family:var(--mono);
+  font-size:0.73rem;line-height:1.65rem;color:#2a2a2a;background:var(--dark);
+  border-right:1px solid rgba(255,215,0,0.05);overflow:hidden;user-select:none;flex-shrink:0;
+}
+.line-nums span{display:block;padding-right:8px;}
+#editor{
+  flex:1;
+  background:#0a0a0a !important;
+  color:#e8e8e8 !important;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.78rem;line-height:1.65rem;padding:1rem 1.25rem;
+  border:none;outline:none;resize:none;overflow-y:auto;
+  tab-size:4;white-space:pre;overflow-x:auto;
+  caret-color:#FFD700;
+  color-scheme:dark;
+  -webkit-text-fill-color:#e8e8e8;
+}
+#editor::selection{background:rgba(255,215,0,0.18);}
+
+/* ── OUTPUT PANE ── */
+.output-pane{display:flex;flex-direction:column;overflow:hidden;}
+.out-tabs{
+  display:flex;background:var(--dark2);border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.out-tab{
+  padding:0.45rem 1rem;font-family:var(--mono);font-size:0.6rem;letter-spacing:0.12em;
+  text-transform:uppercase;color:var(--muted);cursor:pointer;border:none;
+  background:transparent;border-bottom:2px solid transparent;transition:all 0.15s;
+}
+.out-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+#output{
+  flex:1;overflow-y:auto;padding:1rem 1.25rem;font-family:'JetBrains Mono',monospace;
+  font-size:0.73rem;line-height:1.65rem;background:#0a0a0a !important;color:#e8e8e8;
+}
+.ol{display:block;white-space:pre-wrap;word-break:break-all;}
+.ol-sys{color:#2d2d2d;font-style:italic;}
+.ol-info{color:var(--text);}
+.ol-ok{color:var(--green);}
+.ol-err{color:var(--red);}
+.ol-warn{color:#fb923c;}
+.ol-db{color:#60a5fa;}
+.ol-sec{color:#c084fc;}
+.ol-mail{color:#22d3ee;}
+.ol-ai{color:#a78bfa;}
+.ol-blink{animation:blink 1s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+
+/* ── STATUS BAR ── */
+.statusbar{
+  height:24px;background:var(--dark2);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 1rem;gap:1.25rem;
+  font-family:var(--mono);font-size:0.6rem;color:var(--muted);flex-shrink:0;
+}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:4px;display:inline-block;}
+.status-dot.running{background:var(--gold);animation:blink 0.5s step-end infinite;}
+#execTime{margin-left:auto;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .main{grid-template-columns:190px 1fr 1fr;}
+}
+@media(max-width:700px){
+  .mobile-tabs{display:flex;}
+  .main{display:block;height:calc(100vh - 44px - 38px);}
+  .sidebar{
+    position:fixed;top:82px;left:0;right:0;bottom:0;z-index:50;
+    display:none;max-height:calc(100vh - 82px);overflow-y:auto;
+  }
+  .sidebar.show{display:flex;}
+  .editor-pane{height:100%;display:none;flex-direction:column;}
+  .editor-pane.show{display:flex;}
+  .output-pane{height:100%;display:none;flex-direction:column;}
+  .output-pane.show{display:flex;}
+  #editor{font-size:0.72rem;}
+  .btn{padding:0.28rem 0.6rem;font-size:0.62rem;}
+  .btn-run{padding:0.28rem 0.8rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <a href="index.html" class="topbar-logo">Jovas</a>
+  <span class="topbar-title">Playground</span>
+  <div class="topbar-right">
+    <button class="btn" onclick="doClear()">Clear</button>
+    <button class="btn" onclick="doShare()">Share</button>
+    <button class="btn btn-run" onclick="doRun()">&#9654; Run</button>
+  </div>
+</div>
+
+<!-- Mobile tab bar -->
+<div class="mobile-tabs">
+  <button class="mtab" id="mt-examples" onclick="showPane('examples')">&#9776; Examples</button>
+  <button class="mtab active" id="mt-editor"   onclick="showPane('editor')">&#9998; Editor</button>
+  <button class="mtab" id="mt-output"   onclick="showPane('output')">&#9654; Output</button>
+</div>
+
+<!-- Main layout -->
+<div class="main" id="mainGrid">
+
+  <!-- Sidebar -->
+  <div class="sidebar show" id="pane-examples">
+    <div class="sidebar-hd">Examples</div>
+    <div class="ex-list" id="exList">
+      <div class="ex-item active" onclick="loadEx('hello')"><span class="ex-icon">&#128075;</span> Hello World</div>
+      <div class="ex-item" onclick="loadEx('functions')"><span class="ex-icon">&#9881;</span> Functions</div>
+      <div class="ex-item" onclick="loadEx('classes')"><span class="ex-icon">&#127963;</span> Classes</div>
+      <div class="ex-item" onclick="loadEx('database')"><span class="ex-icon">&#128450;</span> JovasDB</div>
+      <div class="ex-item" onclick="loadEx('auth')"><span class="ex-icon">&#128273;</span> Auth &amp; JWT</div>
+      <div class="ex-item" onclick="loadEx('security')"><span class="ex-icon">&#128274;</span> Security</div>
+      <div class="ex-item" onclick="loadEx('ai')"><span class="ex-icon">&#129302;</span> AI Module</div>
+      <div class="ex-item" onclick="loadEx('email')"><span class="ex-icon">&#128140;</span> Email</div>
+      <div class="ex-item" onclick="loadEx('biometric')"><span class="ex-icon">&#128272;</span> Biometric</div>
+      <div class="ex-item" onclick="loadEx('realtime')"><span class="ex-icon">&#9889;</span> Real-time</div>
+      <div class="ex-item" onclick="loadEx('deploy')"><span class="ex-icon">&#128640;</span> Deploy</div>
+      <div class="ex-item" onclick="loadEx('server')"><span class="ex-icon">&#127760;</span> HTTP Server</div>
+      <div class="ex-item" onclick="loadEx('pipeline')"><span class="ex-icon">&#9655;</span> Pipeline</div>
+      <div class="ex-item" onclick="loadEx('match')"><span class="ex-icon">&#10039;</span> Pattern Match</div>
+      <div class="ex-item" onclick="loadEx('fullapp')"><span class="ex-icon">&#10024;</span> Full App</div>
+    </div>
+    <div class="sidebar-foot">
+      <div class="kbd">
+        <b>Ctrl+Enter</b> &mdash; Run<br>
+        <b>Ctrl+L</b> &mdash; Clear<br>
+        <b>Ctrl+S</b> &mdash; Share<br>
+        <b>Tab</b> &mdash; Indent
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="editor-pane show" id="pane-editor">
+    <div class="pane-hd">
+      <span class="pane-title">Editor</span>
+      <span style="flex:1"></span>
+      <span class="pane-file" id="filename">hello.jovas</span>
+    </div>
+    <div class="editor-wrap">
+      <div class="line-nums" id="lineNums"></div>
+      <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">// Hello World in Jovas
+const LANG = "Jovas"
+let name   = "World"
+
+fn greet(name)
+    return "Hello, ${name}! Welcome to ${LANG}."
+
+print(greet(name))
+print(greet("Dustin"))
+
+let nums = [1, 2, 3, 4, 5]
+let total = 0
+for n in nums
+    total = total + n
+
+print("Sum: ${total}")
+print("Count: ${len(nums)}")</textarea>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-pane" id="pane-output">
+    <div class="out-tabs">
+      <button class="out-tab active" onclick="switchOutTab(this)">Output</button>
+      <button class="out-tab" onclick="switchOutTab(this)">AST</button>
+      <button class="out-tab" onclick="switchOutTab(this)">Tokens</button>
+    </div>
+    <div id="output">
+      <span class="ol ol-sys">// Jovas Playground v1.0.0</span>
+      <span class="ol ol-sys">// Select an example or write your own code.</span>
+      <span class="ol ol-sys">// Press Run or Ctrl+Enter to execute.</span>
+      <span class="ol"> </span>
+      <span class="ol ol-sys ol-blink">&#9608;</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status bar -->
+<div class="statusbar">
+  <span><span class="status-dot" id="statusDot"></span><span id="statusTxt">Ready</span></span>
+  <span>Jovas v1.0.0</span>
+  <span id="lineCol">Ln 1, Col 1</span>
+  <span id="execTime"></span>
+</div>
+
+<script>
+// ============================================================
+//  EXAMPLES
+// ============================================================
+const EXAMPLES = {
+  hello: {
+    name: "hello.jovas",
+    code: `// Hello World in Jovas
+const LANG = "Jovas"
+let name   = "World"
+
+fn greet(name)
+    return "Hello, \${name}! Welcome to \${LANG}."
+
+print(greet(name))
+print(greet("Dustin"))
+
+let nums = [1, 2, 3, 4, 5]
+let total = 0
+for n in nums
+    total = total + n
+
+print("Sum: \${total}")
+print("Count: \${len(nums)}")`
+  },
+
+  functions: {
+    name: "functions.jovas",
+    code: `// Functions in Jovas
+
+fn add(a, b)
+    return a + b
+
+fn factorial(n)
+    if n <= 1
+        return 1
+    return n * factorial(n - 1)
+
+fn isPrime(n)
+    if n < 2
+        return false
+    let i = 2
+    while i * i <= n
+        if n % i == 0
+            return false
+        i = i + 1
+    return true
+
+print(add(10, 25))
+print(factorial(7))
+print(isPrime(17))
+print(isPrime(18))
+
+async fn fetchUser(id)
+    let res = await http.get("https://api.jovas.dev/users/\${id}")
+    return res.body
+
+let result = fetchUser(1)
+print("Fetched: \${result}")`
+  },
+
+  classes: {
+    name: "classes.jovas",
+    code: `// Classes in Jovas
+
+class Animal
+    fn init(name, sound)
+        self.name  = name
+        self.sound = sound
+
+    fn speak()
+        return "\${self.name} says \${self.sound}!"
+
+    fn describe()
+        return "I am \${self.name}"
+
+class Dog
+    fn init(name)
+        self.name  = name
+        self.tricks = []
+
+    fn learn(trick)
+        self.tricks.push(trick)
+        return "\${self.name} learned: \${trick}"
+
+    fn showTricks()
+        return "\${self.name} knows: \${self.tricks}"
+
+let dog  = Animal("Dog", "Woof")
+let cat  = Animal("Cat", "Meow")
+let bird = Animal("Bird", "Tweet")
+
+print(dog.speak())
+print(cat.speak())
+print(bird.speak())
+
+let rex = Dog("Rex")
+print(rex.learn("sit"))
+print(rex.learn("shake"))
+print(rex.showTricks())`
+  },
+
+  database: {
+    name: "database.jovas",
+    code: `// JovasDB — Native Database
+
+let db = database.connect("playground")
+
+let col1 = { name: "id",     type: "INTEGER", pk: true }
+let col2 = { name: "name",   type: "TEXT",    nullable: false }
+let col3 = { name: "email",  type: "TEXT",    unique: true }
+let col4 = { name: "role",   type: "TEXT",    default: "user" }
+let col5 = { name: "active", type: "BOOLEAN", default: true }
+
+db.createTable("users", [col1, col2, col3, col4, col5])
+
+db.insert("users", { id: 1, name: "Alice", email: "alice@jovas.dev", role: "admin" })
+db.insert("users", { id: 2, name: "Bob",   email: "bob@jovas.dev",   role: "user" })
+db.insert("users", { id: 3, name: "Eve",   email: "eve@jovas.dev",   role: "user", active: false })
+
+let all    = db.select("users")
+let admins = db.select("users", { role: "admin" })
+let active = db.ask("find all active users")
+
+print("All users: \${len(all)}")
+print("Admins:    \${len(admins)}")
+print("Active:    \${len(active)}")
+
+db.update("users", { id: 2 }, { role: "moderator" })
+
+let tx = db.begin()
+tx.insert("users", { id: 4, name: "Dana", email: "dana@jovas.dev" })
+tx.commit()
+
+print("Total after tx: \${db.count(\"users\")}")`
+  },
+
+  auth: {
+    name: "auth.jovas",
+    code: `// Auth & JWT in Jovas
+
+// Sign a JWT token
+let token = auth.sign({ userId: 1, role: "admin" }, "my_secret")
+print("Token: \${token}")
+
+// Verify the token
+let payload = auth.verify(token, "my_secret")
+print("Valid:  \${payload.valid}")
+print("UserId: \${payload}")
+
+// Try invalid token
+try
+    let bad = auth.verify("invalid.token.here", "my_secret")
+    print("Result: \${bad}")
+catch err
+    print("Error: \${err.message}")`
+  },
+
+  security: {
+    name: "security.jovas",
+    code: `// Security Module
+
+// Password hashing
+let hashed = security.hash("mypassword123")
+print("Hash: \${hashed}")
+
+let valid   = security.verify("mypassword123", hashed)
+let invalid = security.verify("wrongpassword", hashed)
+print("Correct password: \${valid}")
+print("Wrong password:   \${invalid}")
+
+// JWT
+let token   = security.jwtSign({ userId: 1, role: "admin" }, "secret", 3600)
+let payload = security.jwtVerify(token, "secret")
+print("JWT: \${payload}")
+
+// Input validation
+let result = security.validate(
+    { email: "alex@jovas.dev", age: 25, name: "Alex" },
+    {
+        email: { required: true, type: "email" },
+        age:   { required: true, min: 18, max: 120 },
+        name:  { required: true, minLength: 2 }
+    }
+)
+print("Validation: \${result}")
+
+// Roles & permissions
+security.defineRole("admin", ["read", "write", "delete"])
+security.defineRole("user",  ["read"])
+
+let ok      = security.permit({ id: 1, role: "admin" }, "delete")
+let denied  = security.permit({ id: 2, role: "user" },  "delete")
+print("Admin can delete: \${ok}")
+print("User can delete:  \${denied}")`
+  },
+
+  ai: {
+    name: "ai.jovas",
+    code: `// AI Module — First-class AI in Jovas
+
+// Ask the AI anything
+let reply = ai.ask("What makes Jovas special?")
+print("AI: \${reply}")
+
+// Sentiment analysis
+let s1 = ai.sentiment("Jovas is an awesome and great language!")
+let s2 = ai.sentiment("This is terrible and awful")
+let s3 = ai.sentiment("Today is Tuesday")
+print("Positive: \${s1}")
+print("Negative: \${s2}")
+print("Neutral:  \${s3}")
+
+// Summarize text
+let text = "Jovas is a powerful backend language that combines the best features of all programming languages into one elegant, expressive syntax with AI built right in."
+let summary = ai.summarize(text)
+print("Summary: \${summary}")
+
+// Translate
+let fr = ai.translate("Hello, welcome to Jovas!", "fr")
+let es = ai.translate("Hello, welcome to Jovas!", "es")
+print("French:  \${fr}")
+print("Spanish: \${es}")
+
+// Classify text
+let label = ai.classify("The server crashed at midnight", ["bug", "feature", "question", "alert"])
+print("Category: \${label}")`
+  },
+
+  email: {
+    name: "email.jovas",
+    code: `// Email Module
+
+// Configure SMTP (use real credentials for actual sending)
+email.configure({ host: "smtp.gmail.com", port: 587 })
+
+// Send a basic email (logged in dev mode)
+email.send({
+    to:      "user@example.com",
+    subject: "Welcome to Jovas!",
+    body:    "Hello! Your account is ready."
+})
+
+// Use a built-in template
+let rendered = email.template("welcome", {
+    name: "Alex",
+    app:  "MyJovasApp"
+})
+print("Subject: \${rendered.subject}")
+print("Body:    \${rendered.body}")
+
+// Send from template
+email.sendTemplate("welcome", { name: "Dustin", app: "Jovas" }, "dustin@jovas.dev")
+
+// Generate OTP
+let otp = email.otp(6)
+print("OTP: \${otp}")
+
+email.sendTemplate("otp", { name: "Dustin", otp: otp }, "dustin@jovas.dev")
+
+// Queue a delayed email
+email.queue({ to: "boss@example.com", subject: "Report", body: "Weekly report attached." }, 0)
+email.flushQueue()
+
+print("History: \${len(email.history())} email(s)")`
+  },
+
+  realtime: {
+    name: "realtime.jovas",
+    code: `// Built-in Real-time
+
+// Subscribe to a channel
+realtime.sync("chat", fn(data)
+    print("Message received: \${data}")
+)
+
+// Listen for events
+realtime.on("userJoined", fn(user)
+    print("User joined: \${user}")
+)
+
+// Presence — join a room
+realtime.join("chat", "user-001")
+realtime.join("chat", "user-002")
+realtime.join("chat", "user-003")
+
+let online = realtime.presence("chat")
+print("Online: \${len(online)} users")
+
+// Broadcast a message
+realtime.broadcast("chat", { from: "Alex", text: "Hello Jovas!" })
+
+// Emit an event
+realtime.emit("userJoined", { name: "Diana", ts: time.now() })
+
+// One user leaves
+realtime.leave("chat", "user-002")
+let after = realtime.presence("chat")
+print("After leave: \${len(after)} users")`
+  },
+
+  deploy: {
+    name: "deploy.jovas",
+    code: `// One-line Deployment
+
+// Deploy to cloud
+let d1 = deploy.to("cloud", { region: "us-east-1", scale: "auto" })
+print("Deployed v1: \${d1}")
+
+// Deploy to edge
+let d2 = deploy.to("edge", { region: "eu-west-1", scale: 3 })
+print("Deployed v2: \${d2}")
+
+// Check status
+let status = deploy.status()
+print("Status: \${status}")
+
+// Scale instances
+deploy.scale(5)
+
+// View logs
+deploy.logs()
+
+// Rollback to previous version
+deploy.rollback()`
+  },
+
+  server: {
+    name: "server.jovas",
+    code: `// HTTP Server in Jovas
+
+fn onHome()
+    print("GET / — serving homepage")
+
+fn onUsers()
+    let users = db.ask("find all active users")
+    print("GET /users — returning \${len(users)} users")
+
+fn onCreate()
+    print("POST /users — creating user")
+
+fn onLogin()
+    let token = auth.sign({ userId: 1 }, "secret")
+    print("POST /login — token: \${token}")
+
+fn onStart()
+    print("✅ Server is live on port 8080")
+
+let app = server.create()
+app.get("/",          onHome)
+app.get("/users",     onUsers)
+app.post("/users",    onCreate)
+app.post("/login",    onLogin)
+app.listen(8080,      onStart)
+
+log.info(["Server started", { port: 8080, routes: 4 }])`
+  },
+
+  pipeline: {
+    name: "pipeline.jovas",
+    code: `// Pipeline Operator |> in Jovas
+
+fn double(x)
+    return x * 2
+
+fn addTen(x)
+    return x + 10
+
+fn square(x)
+    return x * x
+
+// Chain functions with |>
+let result = 5 |> double |> addTen |> square
+print("5 |> double |> addTen |> square = \${result}")
+
+// Pipeline with collections
+fn filterEven(nums)
+    let out = []
+    for n in nums
+        if n % 2 == 0
+            out.push(n)
+    return out
+
+fn sumAll(nums)
+    let total = 0
+    for n in nums
+        total = total + n
+    return total
+
+let nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+let evenSum = nums |> filterEven |> sumAll
+print("Sum of even numbers: \${evenSum}")`
+  },
+
+  match: {
+    name: "match.jovas",
+    code: `// Pattern Matching in Jovas
+
+fn describeStatus(status)
+    match status
+        case "active"   => return "✅ Service is running"
+        case "stopped"  => return "🔴 Service halted"
+        case "pending"  => return "⏳ Service starting up"
+        case "error"    => return "💥 Service crashed"
+        case "default"  => return "❓ Unknown status"
+
+print(describeStatus("active"))
+print(describeStatus("stopped"))
+print(describeStatus("pending"))
+print(describeStatus("unknown"))
+
+fn getDay(n)
+    match n
+        case 1 => return "Monday"
+        case 2 => return "Tuesday"
+        case 3 => return "Wednesday"
+        case 4 => return "Thursday"
+        case 5 => return "Friday"
+        case 6 => return "Saturday"
+        case 7 => return "Sunday"
+        case "default" => return "Invalid day"
+
+repeat 7
+    print(getDay(1))`
+  },
+
+  fullapp: {
+    name: "fullapp.jovas",
+    code: `// Full Jovas Application
+
+import json
+
+const APP  = "JovasDemo"
+const PORT = 8080
+
+// Setup database
+let db = database.connect("fullapp")
+let c1 = { name: "id",    type: "INTEGER", pk: true }
+let c2 = { name: "name",  type: "TEXT",    nullable: false }
+let c3 = { name: "email", type: "TEXT",    unique: true }
+let c4 = { name: "role",  type: "TEXT",    default: "user" }
+db.createTable("users", [c1, c2, c3, c4])
+
+// Seed data
+db.insert("users", { id: 1, name: "Alice", email: "alice@jovas.dev", role: "admin" })
+db.insert("users", { id: 2, name: "Bob",   email: "bob@jovas.dev",   role: "user" })
+
+// Auth
+let token = auth.sign({ userId: 1, role: "admin" }, "secret")
+print("Token: \${token}")
+
+// Security
+security.defineRole("admin", ["read", "write", "delete"])
+security.defineRole("user",  ["read"])
+
+// AI
+let mood = ai.sentiment("Jovas is amazing and powerful!")
+print("App mood: \${mood.sentiment}")
+
+// Email
+email.configure({ host: "smtp.jovas.dev", port: 587 })
+email.send({ to: "admin@jovas.dev", subject: "\${APP} started", body: "App is running!" })
+
+// Deploy
+let d = deploy.to("cloud", { region: "us-east-1", scale: "auto" })
+print("Deployed: \${d}")
+
+// Server
+fn onStart()
+    print("\${APP} running on port \${PORT}")
+
+let app = server.create()
+app.get("/users", fn()
+    print("Serving users")
+)
+app.listen(PORT, onStart)
+
+// Logging
+log.info(["\${APP} initialized", { port: PORT, db: "connected", users: db.count(\"users\") }])
+log.warn(["This is a demo playground"])
+print("\\n✅ \${APP} is fully running!")`
+  },
+
+  biometric: {
+    name: "biometric.jovas",
+    code: `// Biometric Authentication in Jovas
+// Supports: Fingerprint, Face Recognition, Voice
+
+// 1. Fingerprint
+let fp = biometric.init({ type: "fingerprint" })
+fp.enroll("user-alice")
+let r1 = fp.verify("user-alice")
+print("Fingerprint: \${r1.authenticated}")
+
+// 2. Face Recognition
+biometric.enroll("user-alice", { type: "face" })
+let r2 = biometric.verify("user-alice", { type: "face" })
+print("Face: \${r2.authenticated}")
+
+// 3. Voice
+biometric.enroll("user-alice", { type: "voice" })
+let r3 = biometric.verify("user-alice", { type: "voice" })
+print("Voice: \${r3.authenticated}")
+
+// 4. Multi-Factor
+let mfa = biometric.mfa(["fingerprint", "face"])
+mfa.enroll("user-bob")
+let r4 = mfa.verify("user-bob")
+print("MFA: \${r4.authenticated}")
+
+// 5. Access Control
+biometric.guard("admin_panel", { type: "face" })
+let ac1 = biometric.checkAccess("admin_panel", "user-alice")
+print("Admin: \${ac1.granted}")
+
+// 6. Transactions
+let tx1 = biometric.requireForTransaction("user-alice", 500.00, "USD")
+print("500 tx: \${tx1.authorized}")
+let tx2 = biometric.requireForTransaction("user-alice", 5000.00, "USD")
+print("5000 tx: \${tx2.authorized}")
+let tx3 = biometric.requireForTransaction("user-alice", 50000.00, "USD")
+print("50000 tx: \${tx3.authorized}")
+
+// 7. Token
+let r5 = biometric.verify("user-alice", { type: "fingerprint" })
+let tv = biometric.verifyToken(r5.token)
+print("Token: \${tv.valid}")`
+  }
+};
+
+
+// ============================================================
+//  JOVAS INTERPRETER
+// ============================================================
+function jovasRun(code) {
+  const output = [];
+  function emit(type, text) { output.push({type, text: String(text)}); }
+
+  // ── Built-in modules ──────────────────────────────────────────
+  const DB = {};  // in-memory databases
+
+  function makeDB(name) {
+    if (!DB[name]) DB[name] = { tables: {} };
+    const db = DB[name];
+    emit('db', `  [JovasDB] Connected: '${name}'`);
+    return {
+      createTable(a) {
+        const tname = a[0], cols = a[1]||[];
+        if (!db.tables[tname]) db.tables[tname] = { cols, rows: [], nid: 1 };
+        emit('db', `  [JovasDB] ✅ Table '${tname}' created (${cols.length} columns)`);
+        return true;
+      },
+      insert(a) {
+        const tname = a[0], row = Object.assign({}, a[1]||{});
+        if (!db.tables[tname]) db.tables[tname] = { cols:[], rows:[], nid:1 };
+        const id = db.tables[tname].nid++;
+        if (!row.id && row.id !== 0) row._id = id;
+        db.tables[tname].rows.push(row);
+        emit('db', `  [JovasDB] ✅ Inserted into '${tname}' (id=${row.id||id})`);
+        return row;
+      },
+      select(a) {
+        const tname = a[0], where = a[1]||null;
+        const rows = db.tables[tname]?.rows || [];
+        const result = where ? rows.filter(r => matchWhere(r, where)) : [...rows];
+        emit('db', `  [JovasDB] SELECT '${tname}' → ${result.length} row(s)`);
+        return result;
+      },
+      update(a) {
+        const tname = a[0], where = a[1], updates = a[2]||{};
+        const rows = db.tables[tname]?.rows || [];
+        let n = 0;
+        rows.forEach(r => { if (!where || matchWhere(r, where)) { Object.assign(r, updates); n++; } });
+        emit('db', `  [JovasDB] UPDATE '${tname}' → ${n} row(s) affected`);
+        return n;
+      },
+      delete(a) {
+        const tname = a[0], where = a[1];
+        if (!db.tables[tname]) return 0;
+        const before = db.tables[tname].rows.length;
+        db.tables[tname].rows = db.tables[tname].rows.filter(r => !matchWhere(r, where));
+        const n = before - db.tables[tname].rows.length;
+        emit('db', `  [JovasDB] DELETE '${tname}' → ${n} row(s) removed`);
+        return n;
+      },
+      count(a) {
+        const tname = a[0], where = a[1];
+        const rows = db.tables[tname]?.rows || [];
+        const n = where ? rows.filter(r => matchWhere(r, where)).length : rows.length;
+        emit('db', `  [JovasDB] COUNT '${tname}' → ${n}`);
+        return n;
+      },
+      findOne(a) {
+        const tname = a[0], where = a[1];
+        const rows = db.tables[tname]?.rows || [];
+        return rows.find(r => !where || matchWhere(r, where)) || null;
+      },
+      ask(a) {
+        const q = String(a[0]).toLowerCase();
+        // Detect table from query
+        let tname = Object.keys(db.tables).find(n => q.includes(n) || q.includes(n.replace(/s$/,'')));
+        if (!tname) tname = Object.keys(db.tables)[0];
+        if (!tname) { emit('db','  [JovasDB] NLQ: no table found'); return []; }
+        const rows = db.tables[tname]?.rows || [];
+        let result = [...rows];
+        // Active/inactive filter
+        if (q.includes('inactive'))      result = result.filter(r => r.active === false);
+        else if (/\bactive\b/.test(q))   result = result.filter(r => r.active !== false);
+        // Role filter (admin/admins, user/users, etc.)
+        const roleM = q.match(/\b(admin|moderator|guest)s?\b/);
+        if (roleM) result = result.filter(r => r.role === roleM[1]);
+        // Limit (top N / first N)
+        const limitM = q.match(/\b(?:top|first|limit)\s+(\d+)\b/);
+        if (limitM) result = result.slice(0, parseInt(limitM[1]));
+        // Sort
+        const sortM = q.match(/sort\s+by\s+(\w+)(\s+desc)?/);
+        if (sortM) { const col=sortM[1], desc=!!sortM[2]; result.sort((a,b)=>desc?(b[col]>a[col]?1:-1):(a[col]>b[col]?1:-1)); }
+        emit('db', `  [JovasDB] NLQ: "${a[0]}" → ${result.length} row(s) from '${tname}'`);
+        return result;
+      },
+      begin() {
+        emit('db','  [JovasDB] TX started');
+        const snap = JSON.parse(JSON.stringify(db.tables));
+        const ops = [];
+        const tx = {
+          insert(a) { ops.push(['insert',a]); return this._conn.insert(a); },
+          update(a) { ops.push(['update',a]); return this._conn.update(a); },
+          delete(a) { ops.push(['delete',a]); return this._conn.delete(a); },
+          commit()   { emit('db',`  [JovasDB] TX ✅ Committed (${ops.length} op(s))`); return true; },
+          rollback() { db.tables = snap; emit('db','  [JovasDB] TX ⏪ Rolled back'); return true; },
+        };
+        tx._conn = this;
+        return tx;
+      },
+      describe(a) {
+        const tname = a?a[0]:null;
+        if (tname && db.tables[tname]) emit('db',`  Table: ${tname} (${db.tables[tname].rows.length} rows)`);
+        else emit('db',`  DB: ${name} | Tables: ${Object.keys(db.tables).join(', ')}`);
+        return true;
+      },
+      tables_list() { return Object.keys(db.tables); },
+      close() { emit('db',`  [JovasDB] Closed`); return true; },
+    };
+  }
+
+  function matchWhere(row, where) {
+    if (!where || typeof where !== 'object') return true;
+    return Object.entries(where).every(([k,v]) => {
+      if (typeof v === 'object' && v !== null) {
+        if ('gt'  in v) return row[k] >  v.gt;
+        if ('gte' in v) return row[k] >= v.gte;
+        if ('lt'  in v) return row[k] <  v.lt;
+        if ('lte' in v) return row[k] <= v.lte;
+        if ('ne'  in v) return row[k] !== v.ne;
+      }
+      return row[k] == v;
+    });
+  }
+
+  const MODULES = {
+    database: { connect: (a) => makeDB(a[0]||'default') },
+    auth: {
+      sign:   (a) => { emit('db','  [Auth] 🔑 JWT signed'); return 'jvt.' + btoa(JSON.stringify(a[0]||{})).slice(0,32); },
+      verify: (a) => { emit('db','  [Auth] ✅ JWT verified'); return {valid:true,userId:1,payload:a[0]}; },
+    },
+    security: {
+      hash:        (a) => { emit('sec','  [Security] 🔒 Password hashed (PBKDF2)'); return '$jvt$1$'+btoa(String(a[0])).slice(0,24)+'...'; },
+      verify:      (a) => { const ok=String(a[1]).includes(btoa(String(a[0])).slice(0,8)); emit('sec',ok?'  [Security] ✅ Password valid':'  [Security] ❌ Password invalid'); return ok; },
+      jwtSign:     (a) => { emit('sec','  [Security] 🔑 JWT signed'); return 'jvt.'+btoa(JSON.stringify(a[0]||{})).slice(0,32); },
+      jwtVerify:   (a) => { emit('sec','  [Security] ✅ JWT verified'); return {valid:true,payload:Object.assign({},a[0]||{},{iat:Date.now(),exp:Date.now()+3600000})}; },
+      validate:    (a) => { const d=a[0]||{}, r=a[1]||{}; const errs=[]; Object.entries(r).forEach(([f,rule])=>{ if(rule.required&&!d[f]) errs.push(`'${f}' is required`); if(rule.type==='email'&&d[f]&&!/\S+@\S+\.\S+/.test(d[f])) errs.push(`'${f}' must be a valid email`); if(rule.minLength&&d[f]&&String(d[f]).length<rule.minLength) errs.push(`'${f}' too short`); if(rule.min!==undefined&&d[f]<rule.min) errs.push(`'${f}' below min ${rule.min}`); }); const ok=errs.length===0; emit('sec',ok?`  [Security] ✅ Validation passed (${Object.keys(r).length} field(s))`:`  [Security] ❌ Validation failed: ${JSON.stringify(errs)}`); return {valid:ok,errors:errs}; },
+      defineRole:  (a) => { emit('sec',`  [Security] 👤 Role '${a[0]}' defined with ${(a[1]||[]).length} permission(s)`); return true; },
+      permit:      (a) => { const u=a[0]||{},action=a[1]; const isAdmin=u.role==='admin'||u.role==='superadmin'; emit('sec',isAdmin?`  [Security] ✅ Permitted: ${action} (role=${u.role})`:`  [Security] ❌ Denied: ${action} (role=${u.role})`); return isAdmin; },
+      cors:        (a) => { emit('sec','  [Security] 🌐 CORS headers set'); return {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,POST,PUT,DELETE'}; },
+      sanitize:    (a) => String(a[0]).replace(/</g,'&lt;').replace(/>/g,'&gt;'),
+      generateSecret: (a) => { const s=btoa(Math.random().toString(36)).slice(0,a?a[0]:32); return s; },
+      rateLimit:   (a) => ({allowed:true,remaining:99}),
+    },
+    email: {
+      configure:    (a) => { emit('mail',`  [Email] ✅ Configured: ${a[0]?.host||'smtp.example.com'}:${a[0]?.port||587}`); return true; },
+      send:         (a) => { const m=a[0]||{}; emit('mail',`  [Email] 📧 [DEV] To: ${m.to} | Subject: "${m.subject}"`); if(m.body) emit('mail',`  [Email]     Body: ${String(m.body).slice(0,60)}`); return {status:'logged',to:m.to,subject:m.subject}; },
+      template:     (a) => { const n=a[0]||'welcome', d=a[1]||{}; const subj=`Welcome to ${d.app||'App'}!`; const body=`Hi ${d.name||'User'},\n\nWelcome to ${d.app||'App'}! Your account is ready.\n\nBest,\nThe ${d.app||'App'} Team`; return {subject:subj,body,template:n}; },
+      sendTemplate: (a) => { const r=MODULES.email.template([a[0],a[1]]); emit('mail',`  [Email] 📧 Template '${a[0]}' sent to ${a[2]||''}`); return {status:'logged'}; },
+      otp:          (a) => { const o=String(Math.floor(Math.random()*900000+100000)); emit('mail',`  [Email] 🔑 OTP generated: ${o}`); return o; },
+      queue:        (a) => { emit('mail',`  [Email] ⏳ Queued to ${a[0]?.to||''} (delay=${a[1]||0}s)`); return true; },
+      flushQueue:   ()  => { emit('mail','  [Email] 📤 Flushed queue'); return 0; },
+      history:      ()  => [],
+    },
+    ai: {
+      ask:       (a) => { const q=String(a[0]).slice(0,40); emit('ai',`  [AI] 💬 "${q}..."`); return `AI response to: ${q}`; },
+      sentiment: (a) => { const t=String(a[0]).toLowerCase(); const pos=/good|great|awesome|amazing|love|excellent|powerful|special/.test(t); const neg=/terrible|awful|bad|hate|worst/.test(t); const s=pos?'positive':neg?'negative':'neutral'; const score=pos?2:neg?-2:0; emit('ai',`  [AI] 🧠 Sentiment: ${s}`); return {sentiment:s,score}; },
+      summarize: (a) => { const w=String(a[0]).split(' '); const s=w.slice(0,8).join(' ')+(w.length>8?'...':''); return s; },
+      translate: (a) => {
+        const text=String(a[0]), lang=String(a[1]||'es').toLowerCase();
+        const names={'fr':'French','es':'Spanish','de':'German','pt':'Portuguese','it':'Italian','ja':'Japanese','zh':'Chinese','ar':'Arabic','sw':'Swahili','ha':'Hausa'};
+        const lname=names[lang]||lang.toUpperCase();
+        emit('ai',`  [AI] 🌍 Translated to ${lname}`);
+        return `[${lname.toUpperCase()}] ${text}`;
+      },
+      classify: (a) => { const labels=a[1]||['general']; emit('ai',`  [AI] 🏷️  Classified`); return {label:labels[0],confidence:0.92}; },
+      embed:    (a) => { return Array.from({length:8},()=>Math.random().toFixed(4)); },
+    },
+    http: {
+      get:    (a) => { emit('db',`  [HTTP] GET ${a[0]} → 200`); return {status:200,ok:true,body:{url:a[0],message:'mock response'}}; },
+      post:   (a) => { emit('db',`  [HTTP] POST ${a[0]} → 201`); return {status:201,ok:true,body:{created:true,data:a[1]}}; },
+      put:    (a) => { emit('db',`  [HTTP] PUT ${a[0]} → 200`); return {status:200,ok:true,body:{updated:true}}; },
+      delete: (a) => { emit('db',`  [HTTP] DELETE ${a[0]} → 200`); return {status:200,ok:true,body:{deleted:true}}; },
+      setHeaders: (a) => true,
+      setTimeout: (a) => true,
+    },
+    server: {
+      create: () => {
+        emit('db','  [Server] 🌐 Server created');
+        return {
+          get:    (a) => { emit('db',`  [Server] Route registered: GET ${a[0]}`); return true; },
+          post:   (a) => { emit('db',`  [Server] Route registered: POST ${a[0]}`); return true; },
+          put:    (a) => { emit('db',`  [Server] Route registered: PUT ${a[0]}`); return true; },
+          listen: (a) => { emit('db',`  [Server] 🚀 Listening on port ${a[0]}`); if(typeof a[1]==='function'){try{a[1]([]);}catch(e){}} return true; },
+        };
+      },
+    },
+    realtime: {
+      sync:      (a) => { emit('ai',`  [Realtime] 📡 Subscribed: '${a[0]}'`); return {channel:a[0]}; },
+      broadcast: (a) => { emit('ai',`  [Realtime] 📢 Broadcast → '${a[0]}': ${JSON.stringify(a[1]||{}).slice(0,40)}`); return true; },
+      on:        (a) => { emit('ai',`  [Realtime] 👂 Listening: '${a[0]}'`); return true; },
+      emit:      (a) => { emit('ai',`  [Realtime] ⚡ Emit '${a[0]}': ${JSON.stringify(a[1]||{}).slice(0,40)}`); return true; },
+      join:      (a) => { emit('ai',`  [Realtime] 👋 ${a[1]||'user'} joined '${a[0]}'`); return true; },
+      leave:     (a) => { emit('ai',`  [Realtime] 👋 ${a[1]||'user'} left '${a[0]}'`); return true; },
+      presence:  (a) => ['user-1','user-2','user-3'],
+    },
+    deploy: {
+      to:       (a) => { emit('warn',`  [Deploy] 🚀 Deployed to '${a[0]}' (${a[1]?.region||'us-east-1'})`); return {url:`https://jovas-app.${a[0]}.io`,version:1,status:'live'}; },
+      status:   ()  => { emit('warn','  [Deploy] ✅ Status: running'); return {status:'running',uptime:'99.9%'}; },
+      scale:    (a) => { emit('warn',`  [Deploy] ⚡ Scaled to ${a[0]} instance(s)`); return true; },
+      rollback: ()  => { emit('warn','  [Deploy] ⏪ Rolled back to previous version'); return true; },
+      logs:     ()  => { emit('warn','  [Deploy] 📋 [2026] Server started on port 8080'); return []; },
+    },
+    log: {
+      info:  (a) => { emit('warn',`  [Log] ℹ️  ${fmtVal(a[0])}${a[1]?' '+JSON.stringify(a[1]).slice(0,40):''}`); return null; },
+      warn:  (a) => { emit('warn',`  [Log] ⚠️  ${fmtVal(a[0])}`); return null; },
+      error: (a) => { emit('err', `  [Log] ❌ ${fmtVal(a[0])}`); return null; },
+      debug: (a) => { emit('warn',`  [Log] 🔍 ${fmtVal(a[0])}`); return null; },
+      fatal: (a) => { emit('err', `  [Log] 💀 ${fmtVal(a[0])}`); return null; },
+    },
+    math: { PI:Math.PI, E:Math.E, sqrt:(a)=>Math.sqrt(a[0]), floor:(a)=>Math.floor(a[0]), ceil:(a)=>Math.ceil(a[0]), abs:(a)=>Math.abs(a[0]), pow:(a)=>Math.pow(a[0],a[1]), round:(a)=>Math.round(a[0]) },
+    json: { parse:(a)=>{try{return JSON.parse(a[0]);}catch(e){return null;}}, stringify:(a)=>JSON.stringify(a[0],null,2) },
+    time: { now:()=>Date.now(), today:()=>new Date().toISOString().split('T')[0], sleep:()=>null, format:()=>new Date().toLocaleString() },
+    crypto: { hash:(a)=>'sha256:'+btoa(String(a[0])).slice(0,16), md5:(a)=>'md5:'+btoa(String(a[0])).slice(0,8) },
+    env: { get:(a)=>a[1]||null, set:()=>true },
+    config: { load:()=>true, get:(a)=>a[1]||null, require:(a)=>a[1]||'' },
+    rateLimit: { check:(a)=>({allowed:true,remaining:99}), reset:()=>true },
+    file: { read:(a)=>`[content of ${a[0]}]`, write:()=>true, exists:()=>true, delete:()=>true, list:()=>[] },
+    fmt:  { format:(a)=>{emit('info','  [Formatter] ✅ Formatted');return a[0];}, formatFile:()=>true },
+    lint: { check:(a)=>{emit('info','  [Linter] ✅ No issues found');return {issues:[],errors:0,warnings:0,clean:true};} },
+    debug: {
+      breakpoint: (a)=>{ emit('warn',`  [Debug] 🔴 Breakpoint: ${a[0]}:${a[1]||0}`); return true; },
+      watch:      (a)=>{ emit('warn',`  [Debug] 👁 Watching: '${a[0]}'`); return true; },
+      log:        (a)=>{ emit('warn',`  [Debug] [${new Date().toTimeString().slice(0,8)}] ${a[0]}: ${fmtVal(a[1])}`); return a[1]; },
+      inspect:    (a)=>{ emit('warn',`  [Debug] 🔍 ${JSON.stringify(a[0]).slice(0,60)}`); return a[0]; },
+      time:       (a)=>{ emit('warn',`  [Debug] ⏱ Timer: ${a[0]}`); return 0; },
+      assert:     (a)=>{ if(!a[0]) throw new Error(`Assert failed: ${a[1]||''}`); emit('warn','  [Debug] ✅ Assert passed'); return true; },
+      trace:      (a)=>{ emit('warn',`  [Debug] → ${a[0]}`); return true; },
+      stackTrace: ()=>{ emit('warn','  [Debug] Call stack: (empty)'); return []; },
+      exportLog:  (a)=>{ emit('warn',`  [Debug] 💾 Log exported: ${a[0]||'debug.json'}`); return true; },
+    },
+    socket: {
+      connect: (a)=>{ emit('db',`  [WebSocket] ✅ Connected to ${a[0]}`); return { send:(b)=>true, on:(b)=>true, emit:(b)=>true, close:()=>true }; }
+    },
+
+    biometric: {
+      _store: {},
+      _guards: {},
+
+      _getStore(uid) {
+        if (!this._store[uid]) this._store[uid] = {};
+        return this._store[uid];
+      },
+
+      _genToken(uid, type) {
+        const exp = Date.now() + 300000;
+        const raw = btoa(JSON.stringify({sub:uid,bio:type,exp})).slice(0,32);
+        return `bio.${raw}.${btoa(uid+type).slice(0,16)}`;
+      },
+
+      init: (a) => {
+        const cfg  = a[0]||{};
+        const type = typeof cfg==='object' ? (cfg.type||'fingerprint') : 'fingerprint';
+        emit('sec', `  [Biometric] 🔐 Initialized: ${type}`);
+        const mod = MODULES.biometric;
+        return {
+          enroll:     (b) => mod._enroll(b[0]||'user', type),
+          verify:     (b) => mod._verify(b[0]||'user', type),
+          isEnrolled: (b) => mod._getStore(b[0]||'user')[type]||false,
+        };
+      },
+
+      enroll: (a) => {
+        const uid  = String(a[0]||'user');
+        const opts = a[1]||{};
+        const type = typeof opts==='object' ? (opts.type||'fingerprint') : 'fingerprint';
+        return MODULES.biometric._enroll(uid, type, opts);
+      },
+
+      verify: (a) => {
+        const uid  = String(a[0]||'user');
+        const opts = a[1]||{};
+        const type = typeof opts==='object' ? (opts.type||'fingerprint') : 'fingerprint';
+        return MODULES.biometric._verify(uid, type, opts);
+      },
+
+      _enroll(uid, type, opts={}) {
+        const store = this._getStore(uid);
+        store[type] = true;
+        const icons = {fingerprint:'👆',face:'📷',voice:'🎤'};
+        const icon  = icons[type]||'🔐';
+        const q     = Math.floor(Math.random()*15)+85;
+        emit('sec', `  [Biometric] ${icon} Scanning ${type}...`);
+        if (type==='face')  emit('sec', `  [Biometric] 👁  Liveness check: blink detected`);
+        if (type==='voice') emit('sec', `  [Biometric] 🎤 Recording 3 voice samples...`);
+        emit('sec', `  [Biometric] ✅ ${type.charAt(0).toUpperCase()+type.slice(1)} enrolled (quality: ${q}%)`);
+        return { enrolled:true, user_id:uid, type, quality:q, enrolled_at:new Date().toISOString() };
+      },
+
+      _verify(uid, type, opts={}) {
+        const store  = this._getStore(uid);
+        const icons  = {fingerprint:'👆',face:'📷',voice:'🎤'};
+        const icon   = icons[type]||'🔐';
+        emit('sec', `  [Biometric] ${icon} Verifying ${type}...`);
+        if (type==='face') emit('sec', `  [Biometric] 👁  Liveness check: passed`);
+        if (!store[type]) {
+          emit('sec', `  [Biometric] ❌ ${uid} not enrolled for ${type}`);
+          return { authenticated:false, reason:'not_enrolled', type, user_id:uid };
+        }
+        const score = (Math.random()*10+88).toFixed(1);
+        emit('sec', `  [Biometric] ✅ ${type.charAt(0).toUpperCase()+type.slice(1)} verified (score: ${score}%)`);
+        const token = this._genToken(uid, type);
+        return { authenticated:true, type, user_id:uid, score:parseFloat(score), token, timestamp:new Date().toISOString() };
+      },
+
+      mfa: (a) => {
+        const types = a[0]||['fingerprint','face'];
+        emit('sec', `  [Biometric] 🔐 MFA configured: ${types.join(' + ')}`);
+        const mod = MODULES.biometric;
+        return {
+          enroll: (b) => {
+            const uid = String(b[0]||'user');
+            const results = types.map(t => mod._enroll(uid, t));
+            const ok = results.every(r => r.enrolled);
+            emit('sec', `  [Biometric] 🔐 MFA enrollment: ${ok?'✅ Complete':'❌ Incomplete'}`);
+            return { enrolled:ok, types, results, user_id:uid };
+          },
+          verify: (b) => {
+            const uid = String(b[0]||'user');
+            const results = [];
+            for (const t of types) {
+              const r = mod._verify(uid, t);
+              results.push(r);
+              if (!r.authenticated) {
+                emit('sec', `  [Biometric] ❌ MFA failed at: ${t}`);
+                return { authenticated:false, failed_at:t, types, results };
+              }
+            }
+            const token = mod._genToken(uid, types.join('+'));
+            emit('sec', `  [Biometric] ✅ MFA fully verified (${types.join(' + ')})`);
+            return { authenticated:true, types, results, user_id:uid, token };
+          },
+        };
+      },
+
+      guard: (a) => {
+        const res = String(a[0]||'resource');
+        const cfg = a[1]||{};
+        const type = cfg.type||'fingerprint';
+        MODULES.biometric._guards[res] = cfg;
+        emit('sec', `  [Biometric] 🛡  Guard set: '${res}' requires ${type}`);
+        return { guarded:true, resource:res, requires:type };
+      },
+
+      checkAccess: (a) => {
+        const res = String(a[0]||'resource');
+        const uid = String(a[1]||'user');
+        const guard = MODULES.biometric._guards[res];
+        if (!guard) return { granted:true, reason:'no_guard' };
+        const type   = guard.type||'fingerprint';
+        emit('sec', `  [Biometric] 🛡  Access check: '${res}' for ${uid}`);
+        const result = MODULES.biometric._verify(uid, type, guard);
+        const ok     = result.authenticated;
+        emit('sec', `  [Biometric] ${ok?'✅ Access granted':'❌ Access denied'}: '${res}'`);
+        return { granted:ok, resource:res, user_id:uid, bio_type:type, token:result.token||null };
+      },
+
+      requireForTransaction: (a) => {
+        const uid      = String(a[0]||'user');
+        const amount   = parseFloat(a[1]||0);
+        const currency = a[2]||'USD';
+        const required = amount>=10000 ? ['fingerprint','face'] : amount>=1000 ? ['face'] : ['fingerprint'];
+        emit('sec', `  [Biometric] 💳 Transaction: ${currency} ${amount.toLocaleString('en',{minimumFractionDigits:2})}`);
+        emit('sec', `  [Biometric]    Required: ${required.join(' + ')}`);
+        let authenticated = true;
+        for (const t of required) {
+          const r = MODULES.biometric._verify(uid, t);
+          if (!r.authenticated) { authenticated=false; break; }
+        }
+        if (authenticated) {
+          const txId = Math.random().toString(36).slice(2,14).toUpperCase();
+          emit('sec', `  [Biometric] ✅ Transaction authorized (TX: ${txId})`);
+          return { authorized:true, tx_id:txId, user_id:uid, amount, currency };
+        }
+        emit('sec', `  [Biometric] ❌ Transaction rejected — biometric failed`);
+        return { authorized:false, reason:'biometric_failed', user_id:uid, amount };
+      },
+
+      verifyToken: (a) => {
+        try {
+          const parts = String(a[0]||'').split('.');
+          if (parts[0]!=='bio') return {valid:false,reason:'invalid_format'};
+          const raw = atob(parts[1].padEnd(parts[1].length+((4-parts[1].length%4)%4),'='));
+          const payload = JSON.parse(raw);
+          if (Date.now() > payload.exp) return {valid:false,reason:'token_expired'};
+          return {valid:true,payload};
+        } catch(e) { return {valid:false,reason:String(e)}; }
+      },
+
+      isEnrolled: (a) => {
+        const uid  = String(a[0]||'user');
+        const type = a[1]||'fingerprint';
+        const store = MODULES.biometric._getStore(uid);
+        return { enrolled: !!store[type], types: Object.keys(store), user_id:uid };
+      },
+
+      auditLog: (a) => [],
+      status: (a) => ({ engines:['fingerprint','face','voice'], version:'1.0.0' }),
+    },
+  };
+
+  function fmtVal(v) {
+    if (v === null || v === undefined) return 'null';
+    if (v === true)  return 'true';
+    if (v === false) return 'false';
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  }
+
+  // ── Scope ────────────────────────────────────────────────────
+  function makeScope(parent) {
+    return { __parent__: parent };
+  }
+
+  function scopeGet(scope, name) {
+    let s = scope;
+    while (s) {
+      if (s !== Object.prototype && Object.prototype.hasOwnProperty.call(s, name))
+        return s[name];
+      s = s.__parent__ || null;
+    }
+    // Built-ins
+    if (name === 'true')    return true;
+    if (name === 'false')   return false;
+    if (name === 'null')    return null;
+    if (name === 'len')     return (a) => { const v=a[0]; return Array.isArray(v)?v.length:(v!=null?String(v).length:0); };
+    if (name === 'print')   return (a) => { emit('info', a.map(fmtVal).join(' ')); return null; };
+    if (name === 'str')     return (a) => String(a[0]);
+    if (name === 'int')     return (a) => parseInt(a[0])||0;
+    if (name === 'float')   return (a) => parseFloat(a[0])||0;
+    if (name === 'bool')    return (a) => !!a[0];
+    if (name === 'type')    return (a) => typeof a[0];
+    if (name === 'min')     return (a) => Array.isArray(a[0])?Math.min(...a[0]):Math.min(...a);
+    if (name === 'max')     return (a) => Array.isArray(a[0])?Math.max(...a[0]):Math.max(...a);
+    if (name === 'abs')     return (a) => Math.abs(a[0]);
+    if (name === 'round')   return (a) => Math.round(a[0]);
+    if (name === 'range')   return (a) => Array.from({length:Math.max(0,(a[1]??a[0])-(a[1]!==undefined?a[0]:0))},(_,i)=>(a[1]!==undefined?a[0]:0)+i);
+    if (name === 'sorted')  return (a) => [...(a[0]||[])].sort();
+    if (name === 'reversed')return (a) => [...(a[0]||[])].reverse();
+    if (name in MODULES)    return MODULES[name];
+    return undefined;
+  }
+
+  function scopeSet(scope, name, val) {
+    // Walk up to find existing binding
+    let s = scope;
+    while (s) {
+      if (s !== Object.prototype && Object.prototype.hasOwnProperty.call(s, name)) {
+        s[name] = val; return;
+      }
+      s = s.__parent__ || null;
+    }
+    // Create in current scope
+    scope[name] = val;
+  }
+
+  function scopeDefine(scope, name, val) {
+    scope[name] = val;
+  }
+
+  // ── Interpreter ─────────────────────────────────────────────
+  let callDepth = 0;
+
+  function interp(node, scope) {
+    if (!node) return null;
+    switch (node.t) {
+
+      case 'prog':
+        let last = null;
+        for (const s of node.body) { const r = interp(s, scope); if (r && r.__ret__) return r; last = r; }
+        return last;
+
+      case 'var':
+        scopeDefine(scope, node.name, interp(node.val, scope));
+        return null;
+
+      case 'assign': {
+        const val = interp(node.val, scope);
+        if (node.name.includes('.')) {
+          const parts = node.name.split('.');
+          let obj = scopeGet(scope, parts[0]);
+          if (obj && typeof obj === 'object') {
+            for (let i = 1; i < parts.length - 1; i++) obj = obj[parts[i]];
+            obj[parts[parts.length-1]] = val;
+          }
+        } else {
+          scopeSet(scope, node.name, val);
+        }
+        return val;
+      }
+
+      case 'num':  return node.v;
+      case 'str': {
+        return node.v.replace(/\$\{([^}]+)\}/g, (_, expr) => {
+          try { return fmtVal(evalExpr(expr.trim(), scope)); } catch(e) { return '${'+expr+'}'; }
+        });
+      }
+      case 'bool': return node.v;
+      case 'null': return null;
+
+      case 'ident': return scopeGet(scope, node.name);
+
+      case 'arr':  return node.els.map(e => interp(e, scope));
+
+      case 'obj': {
+        const obj = {};
+        for (const [k, v] of node.pairs) obj[k] = interp(v, scope);
+        return obj;
+      }
+
+      case 'binop': {
+        // Lazy eval for && and ||
+        if (node.op === '&&') return interp(node.l, scope) ? interp(node.r, scope) : false;
+        if (node.op === '||') { const lv = interp(node.l, scope); return lv ? lv : interp(node.r, scope); }
+        const l = interp(node.l, scope);
+        const r = interp(node.r, scope);
+        switch (node.op) {
+          case '+': {
+            if (typeof l === 'string' || typeof r === 'string') return String(l??'') + String(r??'');
+            const ln = Number(l??0), rn = Number(r??0);
+            return isNaN(ln) || isNaN(rn) ? String(l??'') + String(r??'') : ln + rn;
+          }
+          case '-': return Number(l??0) - Number(r??0);
+          case '*': return Number(l??0) * Number(r??0);
+          case '/': { const rn = Number(r??0); return rn === 0 ? 0 : Number(l??0) / rn; }
+          case '%': return Number(l??0) % Number(r??0);
+          case '==':  return l == r;
+          case '!=':  return l != r;
+          case '<':   return l <  r;
+          case '>':   return l >  r;
+          case '<=':  return l <= r;
+          case '>=':  return l >= r;
+        }
+        break;
+      }
+
+      case 'unary': {
+        const v = interp(node.operand, scope);
+        if (node.op === '!') return !v;
+        if (node.op === '-') return -Number(v??0);
+        break;
+      }
+
+      case 'if': {
+        if (interp(node.cond, scope)) {
+          const inner = makeScope(scope);
+          for (const s of node.then) { const r = interp(s, inner); if (r && r.__ret__) return r; }
+        } else {
+          for (const branch of node.elif||[]) {
+            if (interp(branch.cond, scope)) {
+              const inner = makeScope(scope);
+              for (const s of branch.body) { const r = interp(s, inner); if (r && r.__ret__) return r; }
+              return null;
+            }
+          }
+          if (node.els) {
+            const inner = makeScope(scope);
+            for (const s of node.els) { const r = interp(s, inner); if (r && r.__ret__) return r; }
+          }
+        }
+        return null;
+      }
+
+      case 'while': {
+        let guard = 0;
+        while (interp(node.cond, scope) && ++guard < 10000) {
+          for (const s of node.body) { const r = interp(s, scope); if (r && r.__ret__) return r; }
+        }
+        return null;
+      }
+
+      case 'for': {
+        const arr = interp(node.iter, scope);
+        if (!Array.isArray(arr)) return null;
+        for (const item of arr) {
+          scopeSet(scope, node.var, item);
+          for (const s of node.body) { const r = interp(s, scope); if (r && r.__ret__) return r; }
+        }
+        return null;
+      }
+
+      case 'repeat': {
+        const n = Number(interp(node.count, scope)||0);
+        for (let i = 0; i < n && i < 10000; i++) {
+          for (const s of node.body) { const r = interp(s, scope); if (r && r.__ret__) return r; }
+        }
+        return null;
+      }
+
+      case 'fn':
+        scopeDefine(scope, node.name, { __fn__: true, params: node.params, body: node.body, closure: scope });
+        return null;
+
+      case 'return':
+        return { __ret__: true, value: node.val ? interp(node.val, scope) : null };
+
+      case 'call': {
+        const fn  = interp(node.callee, scope);
+        const args = (node.args||[]).map(a => interp(a, scope));
+        return callFn(fn, args, scope, node.callee);
+      }
+
+      case 'member': {
+        const obj = interp(node.obj, scope);
+        if (obj === null || obj === undefined) return null;
+        const prop = node.prop;
+        if (obj?.__fn__ || obj?.__class__) return null;
+        if (typeof obj === 'object') {
+          if (prop in obj) return obj[prop];
+        }
+        if (typeof obj === 'string') {
+          if (prop === 'length') return obj.length;
+          if (prop === 'upper') return () => obj.toUpperCase();
+          if (prop === 'lower') return () => obj.toLowerCase();
+          if (prop === 'trim')  return () => obj.trim();
+          if (prop === 'split') return (a) => obj.split(a?a[0]:'');
+          if (prop === 'includes') return (a) => obj.includes(a[0]);
+          if (prop === 'replace')  return (a) => obj.replace(a[0],a[1]);
+          if (prop === 'startsWith') return (a) => obj.startsWith(a[0]);
+          if (prop === 'endsWith')   return (a) => obj.endsWith(a[0]);
+        }
+        if (Array.isArray(obj)) {
+          if (prop === 'length')   return obj.length;
+          if (prop === 'push')     return (a) => { obj.push(a[0]); return obj; };
+          if (prop === 'pop')      return () => obj.pop();
+          if (prop === 'join')     return (a) => obj.join(a?a[0]:'');
+          if (prop === 'includes') return (a) => obj.includes(a[0]);
+          if (prop === 'reverse')  return () => [...obj].reverse();
+          if (prop === 'sort')     return () => [...obj].sort();
+          if (prop === 'map')      return (a) => obj.map(item => callFn(a[0],[item],scope));
+          if (prop === 'filter')   return (a) => obj.filter(item => callFn(a[0],[item],scope));
+          if (prop === 'find')     return (a) => obj.find(item => callFn(a[0],[item],scope));
+        }
+        return null;
+      }
+
+      case 'class':
+        scopeDefine(scope, node.name, { __class__: true, name: node.name, methods: node.methods, closure: scope });
+        return null;
+
+      case 'try': {
+        try {
+          const inner = makeScope(scope);
+          for (const s of node.body) { const r = interp(s, inner); if (r && r.__ret__) return r; }
+        } catch(e) {
+          if (node.catch) {
+            const inner = makeScope(scope);
+            if (node.evar) scopeDefine(inner, node.evar, { message: e.message||String(e) });
+            for (const s of node.catch) { const r = interp(s, inner); if (r && r.__ret__) return r; }
+          }
+        } finally {
+          if (node.finally) for (const s of node.finally) interp(s, scope);
+        }
+        return null;
+      }
+
+      case 'match': {
+        const val = fmtVal(interp(node.val, scope));
+        for (const [pat, body] of node.cases) {
+          const pval = fmtVal(interp(pat, scope));
+          if (val === pval || pval === 'default') { const r = interp(body, scope); if (r && r.__ret__) return r; return r; }
+        }
+        return null;
+      }
+
+      case 'expr':
+        return interp(node.expr, scope);
+
+      case 'import':
+        return null;
+    }
+    return null;
+  }
+
+  function callFn(fn, args, scope, callee) {
+    if (fn === null || fn === undefined) {
+      const name = callee?.name || callee?.prop || '?';
+      emit('err', `  [Error] '${name}' is not defined`);
+      return null;
+    }
+    if (typeof fn === 'function') return fn(args);
+    if (fn && fn.__fn__) {
+      if (++callDepth > 200) { callDepth = 0; throw new Error('Max recursion depth exceeded'); }
+      const inner = makeScope(fn.closure || scope);
+      (fn.params||[]).forEach((p,i) => { scopeDefine(inner, typeof p==='string'?p:p[0], args[i]??null); });
+      let ret = null;
+      for (const s of fn.body||[]) { const r = interp(s, inner); if (r && r.__ret__) { ret = r.value; break; } }
+      callDepth--;
+      return ret;
+    }
+    if (fn && fn.__class__) {
+      const inst = { __inst__: fn.name };
+      const self = makeScope(fn.closure || scope);
+      scopeDefine(self, 'self', inst);
+      for (const m of fn.methods||[]) {
+        scopeDefine(self, m.name, { __fn__: true, params: m.params, body: m.body, closure: self });
+        inst[m.name] = (...a) => callFn(scopeGet(self, m.name), Array.isArray(a[0])?a[0]:a, self);
+      }
+      if (scopeGet(self, 'init')) callFn(scopeGet(self, 'init'), args, self);
+      return inst;
+    }
+    emit('err', `  [Error] Cannot call ${typeof fn}`);
+    return null;
+  }
+
+  function evalExpr(expr, scope) {
+    // Try as simple identifier first
+    const id = scopeGet(scope, expr.trim());
+    if (id !== undefined) return id;
+    // Try function call like len(x)
+    const callM = expr.match(/^(\w+)\s*\(([^)]*)\)$/);
+    if (callM) {
+      const fn = scopeGet(scope, callM[1]);
+      if (fn !== undefined) {
+        const argStr = callM[2].trim();
+        const argVals = argStr ? argStr.split(',').map(a => {
+          const v = scopeGet(scope, a.trim());
+          return v !== undefined ? v : a.trim();
+        }) : [];
+        if (typeof fn === 'function') return fn(argVals);
+      }
+    }
+    // Try member access like obj.prop
+    if (expr.includes('.')) {
+      const parts = expr.split('.');
+      let val = scopeGet(scope, parts[0]);
+      for (let i=1; i<parts.length && val!=null; i++) val = val[parts[i]];
+      if (val !== undefined) return val;
+    }
+    // Try arithmetic expression
+    try {
+      const builtins = { len:(v)=>Array.isArray(v)?v.length:String(v).length, str:String, int:parseInt, float:parseFloat, bool:Boolean, true:true, false:false, null:null };
+      const combined = Object.assign({}, builtins);
+      let s = scope;
+      while (s) {
+        Object.keys(s).filter(k => k !== '__parent__').forEach(k => { combined[k] = s[k]; });
+        s = s.__parent__ || null;
+      }
+      const keys = Object.keys(combined).filter(k => /^[a-zA-Z_$]/.test(k));
+      const vals = keys.map(k => combined[k]);
+      return new Function(...keys, `return (${expr})`)(...vals);
+    } catch(e) { return expr; }
+  }
+
+  // ── Parser ───────────────────────────────────────────────────
+  function parse(src) {
+    const lines = src.split('\n');
+    let i = 0;
+
+    function cur() { return lines[i] || ''; }
+    function indOf(l) { return (l.match(/^(\s*)/)||['',''])[1].length; }
+    function skip() { while (i<lines.length && !cur().trim()) i++; }
+
+    function block(minInd) {
+      const stmts = [];
+      while (i < lines.length) {
+        skip();
+        if (i >= lines.length) break;
+        const ind = indOf(cur());
+        if (ind <= minInd) break;
+        const s = stmt();
+        if (s) stmts.push(s);
+      }
+      return stmts;
+    }
+
+    function stmt() {
+      skip();
+      if (i >= lines.length) return null;
+      const line = cur();
+      const ind  = indOf(line);
+      const raw  = line.trim();
+      i++;
+
+      if (!raw || raw.startsWith('//') || raw.startsWith('#')) return null;
+
+      // import
+      if (/^import\s/.test(raw)) return {t:'import'};
+
+      // let / const
+      {
+        const m = raw.match(/^(let|const)\s+(\w+)\s*=\s*(.+)$/);
+        if (m) return {t:'var', name:m[2], val:expr(m[3]), constant:m[1]==='const'};
+      }
+
+      // fn / async fn / expose fn
+      {
+        const m = raw.match(/^(?:async\s+|expose\s+)?fn\s+(\w+)\s*\(([^)]*)\)/);
+        if (m) {
+          const params = m[2].split(',').map(p=>p.trim().split(':')[0].trim()).filter(Boolean);
+          const body = block(ind);
+          return {t:'fn', name:m[1], params, body};
+        }
+      }
+
+      // class
+      {
+        const m = raw.match(/^class\s+(\w+)/);
+        if (m) {
+          const methods = [];
+          const b = block(ind);
+          b.forEach(s => { if (s && s.t==='fn') methods.push(s); });
+          return {t:'class', name:m[1], methods};
+        }
+      }
+
+      // return
+      {
+        const m = raw.match(/^return\s*(.*)/);
+        if (m) return {t:'return', val: m[1].trim() ? expr(m[1]) : null};
+      }
+
+      // if / else if / else
+      {
+        const m = raw.match(/^if\s+(.+)$/);
+        if (m) {
+          const then = block(ind);
+          const elif = [];
+          let   els  = null;
+          while (i < lines.length) {
+            skip();
+            if (i >= lines.length) break;
+            const nextRaw = lines[i].trim();
+            const nextInd = indOf(lines[i]);
+            if (nextInd !== ind) break;
+            const em = nextRaw.match(/^else\s+if\s+(.+)$/);
+            if (em) { i++; elif.push({cond:expr(em[1]), body:block(ind)}); continue; }
+            if (nextRaw === 'else') { i++; els = block(ind); break; }
+            break;
+          }
+          return {t:'if', cond:expr(m[1]), then, elif, els};
+        }
+      }
+
+      // for
+      {
+        const m = raw.match(/^for\s+(\w+)\s+in\s+(.+)$/);
+        if (m) return {t:'for', var:m[1], iter:expr(m[2]), body:block(ind)};
+      }
+
+      // while
+      {
+        const m = raw.match(/^while\s+(.+)$/);
+        if (m) return {t:'while', cond:expr(m[1]), body:block(ind)};
+      }
+
+      // repeat N
+      {
+        const m = raw.match(/^repeat\s+(.+)$/);
+        if (m) return {t:'repeat', count:expr(m[1]), body:block(ind)};
+      }
+
+      // match
+      {
+        const m = raw.match(/^match\s+(.+)$/);
+        if (m) {
+          const cases = [];
+          const b = block(ind);
+          b.forEach(s => { if (s && s.t==='case_line') cases.push([s.pat, s.body]); });
+          return {t:'match', val:expr(m[1]), cases};
+        }
+      }
+
+      // case "x" => expr
+      {
+        const m = raw.match(/^case\s+(.+?)\s*=>\s*(.+)$/);
+        if (m) return {t:'case_line', pat:expr(m[1]), body:{t:'expr', expr:expr(m[2])}};
+      }
+
+      // try / catch / finally
+      if (raw === 'try') {
+        const body = block(ind);
+        let catchBody = null, evar = null, finallyBody = null;
+        skip();
+        if (i < lines.length && lines[i].trim().startsWith('catch')) {
+          const cm = lines[i].trim().match(/^catch\s*(\w+)?/);
+          evar = cm?cm[1]:null; i++;
+          catchBody = block(ind);
+        }
+        skip();
+        if (i < lines.length && lines[i].trim() === 'finally') { i++; finallyBody = block(ind); }
+        return {t:'try', body, catch:catchBody, evar, finally:finallyBody};
+      }
+
+      // assignment  x = ...  or  x.prop = ...
+      {
+        const m = raw.match(/^([\w.[\]]+)\s*=(?!=)\s*(.+)$/);
+        if (m && !/^(let|const|if|else|for|while|fn|class|return|match|case|try|import|repeat)/.test(raw))
+          return {t:'assign', name:m[1], val:expr(m[2])};
+      }
+
+      // expression statement
+      return {t:'expr', expr:expr(raw)};
+    }
+
+    function expr(s) {
+      s = (s||'').trim();
+      if (!s) return {t:'null'};
+      return parseBinop(s);
+    }
+
+    function parseBinop(s) {
+      // Handle ternary: a if cond else b (Jovas syntax)
+      // Binary ops — scan right-to-left for lowest precedence
+      for (const op of ['||','&&','==','!=','<=','>=','<','>','+','-','*','/','%']) {
+        const idx = findOp(s, op);
+        if (idx > 0) {
+          return {t:'binop', op, l:expr(s.slice(0,idx).trimEnd()), r:expr(s.slice(idx+op.length).trimStart())};
+        }
+      }
+      return parseUnary(s);
+    }
+
+    function parseUnary(s) {
+      if (s.startsWith('!')) return {t:'unary', op:'!', operand:expr(s.slice(1).trim())};
+      if (s.startsWith('-') && s.length > 1 && !/^\d/.test(s.slice(1))) return {t:'unary', op:'-', operand:expr(s.slice(1).trim())};
+      return parsePostfix(s);
+    }
+
+    function parsePostfix(s) {
+      // Function call: expr(args)
+      if (s.endsWith(')')) {
+        const open = findMatchingParen(s);
+        if (open > 0) {
+          const calleeStr = s.slice(0, open).trim();
+          const argsStr   = s.slice(open+1, s.length-1).trim();
+          const args      = argsStr ? splitArgs(argsStr).map(a => expr(a.trim())) : [];
+          const callee    = parsePrimary(calleeStr);
+          return {t:'call', callee, args};
+        }
+      }
+      // Member access: a.b.c
+      if (s.includes('.') && !s.startsWith('"') && !s.startsWith("'")) {
+        const dotIdx = findDot(s);
+        if (dotIdx > 0) {
+          const left = parsePrimary(s.slice(0, dotIdx).trim());
+          const right = s.slice(dotIdx+1).trim();
+          // Check if right side has a call
+          if (right.endsWith(')')) {
+            const open = findMatchingParen(right);
+            if (open >= 0) {
+              const prop    = right.slice(0, open).trim();
+              const argsStr = right.slice(open+1, right.length-1).trim();
+              const args    = argsStr ? splitArgs(argsStr).map(a => expr(a.trim())) : [];
+              return {t:'call', callee:{t:'member', obj:left, prop}, args};
+            }
+          }
+          return {t:'member', obj:left, prop:right};
+        }
+      }
+      return parsePrimary(s);
+    }
+
+    function parsePrimary(s) {
+      s = s.trim();
+      if (!s) return {t:'null'};
+      if (s === 'null')  return {t:'null'};
+      if (s === 'true')  return {t:'bool', v:true};
+      if (s === 'false') return {t:'bool', v:false};
+      if (/^-?\d+(\.\d+)?$/.test(s)) return {t:'num', v:parseFloat(s)};
+      // String
+      if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))
+        return {t:'str', v:s.slice(1,-1)};
+      // Array
+      if (s.startsWith('[') && s.endsWith(']'))
+        return {t:'arr', els: splitArgs(s.slice(1,-1)).filter(x=>x.trim()).map(e=>expr(e.trim()))};
+      // Object
+      if (s.startsWith('{') && s.endsWith('}')) {
+        const inner = s.slice(1,-1).trim();
+        if (!inner) return {t:'obj', pairs:[]};
+        try {
+          const pairs = splitArgs(inner).map(part => {
+            const ci = part.indexOf(':');
+            if (ci < 0) return null;
+            const k = part.slice(0,ci).trim().replace(/^["']|["']$/g,'');
+            const v = expr(part.slice(ci+1).trim());
+            return [k, v];
+          }).filter(Boolean);
+          return {t:'obj', pairs};
+        } catch(e) { return {t:'null'}; }
+      }
+      // Parenthesised
+      if (s.startsWith('(') && s.endsWith(')')) return expr(s.slice(1,-1));
+      // Identifier
+      if (/^[a-zA-Z_$][\w$]*$/.test(s)) return {t:'ident', name:s};
+      return {t:'null'};
+    }
+
+    function findOp(s, op) {
+      let depth = 0;
+      for (let i = s.length - op.length; i > 0; i--) {
+        const c = s[i];
+        if (c===')'||c===']'||c==='}') depth++;
+        else if (c==='('||c==='['||c==='{') depth--;
+        else if (depth===0 && s.slice(i,i+op.length)===op) {
+          if (op==='-' && i===0) continue;
+          if (op==='-' && '+-*/(%<>=!&|'.includes(s[i-1])) continue;
+          if ((op==='<'||op==='>') && (s[i+1]==='='||s[i-1]==='=')) continue;
+          if (op==='=' && (s[i-1]==='!'||s[i-1]==='<'||s[i-1]==='>'||s[i+1]==='=')) continue;
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    function findMatchingParen(s) {
+      // Find the opening ( that matches the closing )
+      let depth = 0;
+      for (let i = s.length-1; i >= 0; i--) {
+        if (s[i]===')') depth++;
+        else if (s[i]==='(') { depth--; if (depth===0) return i; }
+      }
+      return -1;
+    }
+
+    function findDot(s) {
+      let depth = 0;
+      for (let i = 0; i < s.length; i++) {
+        if (s[i]==='('||s[i]==='['||s[i]==='{') depth++;
+        else if (s[i]===')'||s[i]===']'||s[i]==='}') depth--;
+        else if (s[i]==='.' && depth===0 && i>0) return i;
+      }
+      return -1;
+    }
+
+    function splitArgs(s) {
+      const parts = []; let cur='', depth=0, inStr=false, strChar='';
+      for (let i=0; i<s.length; i++) {
+        const c = s[i];
+        if (inStr) { cur+=c; if (c===strChar && s[i-1]!=='\\') inStr=false; }
+        else if (c==='"'||c==="'") { inStr=true; strChar=c; cur+=c; }
+        else if (c==='('||c==='['||c==='{') { depth++; cur+=c; }
+        else if (c===')'||c===']'||c==='}') { depth--; cur+=c; }
+        else if (c===',' && depth===0) { parts.push(cur.trim()); cur=''; }
+        else cur+=c;
+      }
+      if (cur.trim()) parts.push(cur.trim());
+      return parts;
+    }
+
+    // Parse all statements
+    const body = [];
+    while (i < lines.length) {
+      skip();
+      if (i >= lines.length) break;
+      const s = stmt();
+      if (s) body.push(s);
+    }
+    return {t:'prog', body};
+  }
+
+  // ── Execute ──────────────────────────────────────────────────
+  try {
+    callDepth = 0;
+    const ast   = parse(code);
+    const scope = makeScope(null);
+    interp(ast, scope);
+  } catch(e) {
+    emit('err', `[Error] ${e.message||String(e)}`);
+  }
+
+  return output;
+}
+
+
+async function doRun() {
+  const code = document.getElementById('editor').value;
+  if (!code.trim()) return;
+  setStatus('running');
+  clearOut();
+  addLine('sys', '// Running ' + document.getElementById('filename').textContent + '...');
+  addLine('sys', '');
+  const t0 = Date.now();
+  const results = jovasRun(code);
+  results.forEach(function(r) {
+    if (!r.text && r.text !== '0') { addLine('', ''); return; }
+    addLine(r.type || 'info', r.text);
+  });
+  const ms = Date.now() - t0;
+  addLine('ok', '[Done] \u2705 Executed in ' + ms + 'ms');
+  document.getElementById('execTime').textContent = ms + 'ms';
+  setStatus('ready');
+  // On mobile — switch to output
+  if (window.innerWidth <= 700) showPane('output');
+}
+
+// ============================================================
+//  UI HELPERS
+// ============================================================
+function addLine(type, text) {
+  var out  = document.getElementById('output');
+  var span = document.createElement('span');
+  var cls  = 'ol';
+  if (type === 'sys')  cls += ' ol-sys';
+  else if (type === 'ok')   cls += ' ol-ok';
+  else if (type === 'err')  cls += ' ol-err';
+  else if (type === 'warn') cls += ' ol-warn';
+  else if (type === 'db')   cls += ' ol-db';
+  else if (type === 'sec')  cls += ' ol-sec';
+  else if (type === 'mail') cls += ' ol-mail';
+  else if (type === 'ai')   cls += ' ol-ai';
+  else cls += ' ol-info';
+  span.className = cls;
+  span.textContent = text;
+  out.appendChild(span);
+  out.scrollTop = out.scrollHeight;
+}
+
+function clearOut() {
+  document.getElementById('output').innerHTML = '';
+}
+
+function doClear() {
+  clearOut();
+}
+
+function setStatus(s) {
+  var dot  = document.getElementById('statusDot');
+  var txt  = document.getElementById('statusTxt');
+  if (s === 'running') {
+    dot.className = 'status-dot running';
+    txt.textContent = 'Running...';
+  } else {
+    dot.className = 'status-dot';
+    txt.textContent = 'Ready';
+  }
+}
+
+function doShare() {
+  var code    = document.getElementById('editor').value;
+  var encoded = btoa(encodeURIComponent(code));
+  var url     = window.location.href.split('?')[0] + '?code=' + encoded;
+  navigator.clipboard.writeText(url).then(function() {
+    var btn = document.querySelector('.btn-run + .btn, .btn[onclick="doShare()"]');
+    var shareBtn = Array.from(document.querySelectorAll('.btn')).find(function(b){ return b.textContent === 'Share'; });
+    if (shareBtn) { shareBtn.textContent = 'Copied!'; setTimeout(function(){ shareBtn.textContent = 'Share'; }, 2000); }
+  }).catch(function() {});
+}
+
+function switchOutTab(btn) {
+  document.querySelectorAll('.out-tab').forEach(function(t){ t.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+function updateLineNums() {
+  var ta    = document.getElementById('editor');
+  var count = ta.value.split('\n').length;
+  var nums  = document.getElementById('lineNums');
+  var html  = '';
+  for (var i = 1; i <= count; i++) html += '<span>' + i + '</span>';
+  nums.innerHTML = html;
+}
+
+function loadEx(name) {
+  var ex = EXAMPLES[name];
+  if (!ex) return;
+  document.getElementById('editor').value    = ex.code;
+  document.getElementById('filename').textContent = ex.name;
+  document.querySelectorAll('.ex-item').forEach(function(el) {
+    el.classList.toggle('active', el.getAttribute('onclick') === "loadEx('" + name + "')");
+  });
+  updateLineNums();
+  clearOut();
+  // On mobile — switch to editor
+  if (window.innerWidth <= 700) showPane('editor');
+}
+
+// ── Mobile pane switching ──
+function showPane(name) {
+  // Update tab buttons
+  ['examples','editor','output'].forEach(function(p) {
+    var btn = document.getElementById('mt-' + p);
+    if (btn) btn.classList.toggle('active', p === name);
+  });
+
+  // Show / hide panes
+  var panes = {
+    'examples': document.getElementById('pane-examples'),
+    'editor':   document.getElementById('pane-editor'),
+    'output':   document.getElementById('pane-output'),
+  };
+  var isMobile = window.innerWidth <= 700;
+  Object.keys(panes).forEach(function(key) {
+    var pane = panes[key];
+    if (!pane) return;
+    if (!isMobile) {
+      // Desktop — always show everything, remove mobile classes
+      pane.classList.remove('show');
+      pane.style.display = '';
+    } else {
+      pane.classList.toggle('show', key === name);
+    }
+  });
+}
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doRun(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'l')     { e.preventDefault(); doClear(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's')     { e.preventDefault(); doShare(); }
+});
+
+document.getElementById('editor').addEventListener('keydown', function(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    var s = this.selectionStart;
+    this.value = this.value.substring(0, s) + '    ' + this.value.substring(s);
+    this.selectionStart = this.selectionEnd = s + 4;
+    updateLineNums();
+  }
+});
+
+document.getElementById('editor').addEventListener('input', updateLineNums);
+document.getElementById('editor').addEventListener('scroll', function() {
+  document.getElementById('lineNums').scrollTop = this.scrollTop;
+});
+document.getElementById('editor').addEventListener('keyup', function() {
+  var lines = this.value.substring(0, this.selectionStart).split('\n');
+  document.getElementById('lineCol').textContent = 'Ln ' + lines.length + ', Col ' + (lines[lines.length-1].length + 1);
+});
+
+// Handle window resize — restore desktop layout
+window.addEventListener('resize', function() {
+  if (window.innerWidth > 700) {
+    ['pane-examples','pane-editor','pane-output'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.classList.remove('show'); el.style.display = ''; }
+    });
+  }
+});
+
+// ── Load from URL or default ──
+(function init() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('code')) {
+    try {
+      document.getElementById('editor').value = decodeURIComponent(atob(params.get('code')));
+      updateLineNums();
+    } catch(e) { loadEx('hello'); }
+  } else {
+    loadEx('hello');
+  }
+})();
+</script>
+</body>
+</html>
