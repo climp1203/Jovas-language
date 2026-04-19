@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jovas — Redirecting</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --gold: #FFD700;
+    --gold2: #C8A600;
+    --bg: #000;
+    --text: #e2e2e2;
+    --muted: #444;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,215,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,215,0,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridDrift 20s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes gridDrift {
+    from { transform: translate(0, 0); }
+    to   { transform: translate(60px, 60px); }
+  }
+
+  .wrap {
+    text-align: center;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    width: 100%;
+  }
+
+  /* Big 404 number */
+  .num {
+    font-size: clamp(7rem, 22vw, 11rem);
+    font-weight: 800;
+    color: var(--gold);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    position: relative;
+    display: inline-block;
+  }
+
+  .num::after {
+    content: '404';
+    position: absolute;
+    inset: 0;
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(255,215,0,0.15);
+    transform: translate(4px, 4px);
+    z-index: -1;
+  }
+
+  .title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 16px 0 8px;
+    letter-spacing: 0.02em;
+  }
+
+  .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 36px;
+    line-height: 1.6;
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    width: 100%;
+    height: 2px;
+    background: rgba(255,215,0,0.1);
+    border-radius: 2px;
+    margin: 0 auto 28px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 8px rgba(255,215,0,0.6);
+  }
+
+  .redirect-msg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--gold2);
+    margin-bottom: 32px;
+    min-height: 1.2em;
+  }
+
+  /* Buttons */
+  .btns {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: #000;
+    border-color: var(--gold);
+  }
+  .btn-primary:hover {
+    background: #ffe033;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(255,215,0,0.3);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .btn-ghost:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+    transform: translateY(-2px);
+  }
+
+  /* Logo */
+  .logo {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 48px;
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="logo">Jovas Language</div>
+
+  <div class="num">404</div>
+
+  <div class="title">Page Not Found</div>
+  <div class="sub">// The page you're looking for doesn't exist<br>// in the Jovas universe.</div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar" id="bar"></div>
+  </div>
+  <div class="redirect-msg" id="msg">Checking path...</div>
+
+  <div class="btns">
+    <a href="/Jovas-language/" class="btn btn-primary">🏠 Go Home</a>
+    <a href="/Jovas-language/playground.html" class="btn btn-ghost">▶ Playground</a>
+    <a href="/Jovas-language/docs.html" class="btn btn-ghost">📚 Docs</a>
+  </div>
+</div>
+
+<script>
+  // Smart redirect based on the path that was requested
+  const path = window.location.pathname.toLowerCase();
+  const bar  = document.getElementById('bar');
+  const msg  = document.getElementById('msg');
+
+  // Path aliases — map common wrong paths to correct ones
+  const redirectMap = {
+    '/jovas-language/play':        '/Jovas-language/playground.html',
+    '/jovas-language/playground':  '/Jovas-language/playground.html',
+    '/jovas-language/ide':         '/Jovas-language/playground.html',
+    '/jovas-language/editor':      '/Jovas-language/playground.html',
+    '/jovas-language/run':         '/Jovas-language/playground.html',
+    '/jovas-language/doc':         '/Jovas-language/docs.html',
+    '/jovas-language/documentation':'/Jovas-language/docs.html',
+    '/jovas-language/guide':       '/Jovas-language/docs.html',
+    '/jovas-language/home':        '/Jovas-language/',
+    '/jovas-language/index':       '/Jovas-language/',
+  };
+
+  // Find a matching redirect (prefix match)
+  let target = null;
+  for (const [from, to] of Object.entries(redirectMap)) {
+    if (path === from || path === from + '/') {
+      target = to;
+      break;
+    }
+  }
+
+  const DELAY = 2000; // 2 seconds
+  const TICK  = 50;
+
+  if (target) {
+    // Found a smart redirect — show countdown and go
+    let elapsed = 0;
+    msg.textContent = 'Redirecting to ' + target.split('/').pop() + '...';
+
+    const timer = setInterval(() => {
+      elapsed += TICK;
+      bar.style.width = Math.min(100, (elapsed / DELAY) * 100) + '%';
+      const secs = Math.ceil((DELAY - elapsed) / 1000);
+      if (elapsed >= DELAY) {
+        clearInterval(timer);
+        bar.style.width = '100%';
+        msg.textContent = 'Redirecting now...';
+        window.location.replace(target);
+      } else {
+        msg.textContent = 'Redirecting in ' + secs + 's → ' + target.split('/').pop();
+      }
+    }, TICK);
+  } else {
+    // No redirect found — just show the buttons
+    bar.style.width = '100%';
+    bar.style.background = 'rgba(255,215,0,0.3)';
+    msg.textContent = '// No matching page found — pick a destination below';
+  }
+</script>
+
+</body>
+</html>
